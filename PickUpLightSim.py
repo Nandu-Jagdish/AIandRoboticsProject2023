@@ -8,11 +8,13 @@ import matplotlib.pyplot as plt
 import quaternion
 
 C = ry.Config()
-C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandasTable.g'))
-#C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
+#C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandasTable.g'))
+C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 
-cameraFrame = C.getFrame("camera")
+cameraFrame = C.getFrame("cameraWrist")
 cameraFrame.setPosition([0,-0.18,1.2])
+
+
 
 boxSize = 0.07
 heightFactor = 0.7
@@ -53,18 +55,19 @@ C.view()
 
 input("Press Enter to continue...")
 
-bot = ry.BotOp(C, False)
-bot.home(C)
+bot = ry.BotOp(C, True)
+# bot.home(C)
 
-rgb, depth = bot.getImageAndDepth("camera")
 
-input("Press Enter to continue...")
-
-rgb, depth = bot.getImageAndDepth("camera")
+rgb, depth = bot.getImageAndDepth("cameraWrist")
 
 input("Press Enter to continue...")
 
-rgb, depth = bot.getImageAndDepth("camera")
+rgb, depth = bot.getImageAndDepth("cameraWrist")
+
+input("Press Enter to continue...")
+
+rgb, depth = bot.getImageAndDepth("cameraWrist")
 
 fig = plt.figure(figsize=(10,5))
 axs = fig.subplots(1, 2)
@@ -76,10 +79,10 @@ time.sleep(0.5)
 
 input("Press Enter to continue...")
 
-fxypxy = bot.getCameraFxypxy("camera")
+fxypxy = bot.getCameraFxypxy("cameraWrist")
 print(fxypxy)
 depth.shape
-cameraFrame = C.getFrame("camera")
+cameraFrame = C.getFrame("cameraWrist")
 
 #include opencv
 import cv2
@@ -182,7 +185,8 @@ R, t = cameraFrame.getRotationMatrix(), cameraFrame.getPosition()
 H, W = depth.shape
 
     
-Z = depth[x,y]
+# Z = depth[x,y]
+Z = 0
 
 point = [1, 2, 3]
 Z += (h/ fx)*0.5
@@ -192,10 +196,10 @@ point[0] = Z * (x - px) / fx;
 point[1] = -Z * (y - py) / fy;
 point[2] = -Z
 
-h = Z * (h);
-w = Z * w
+# h = Z * (h);
+# w = Z * w
 
-tmp = C.addFrame( "center of red", 'camera')
+tmp = C.addFrame( "center of red", 'cameraWrist')
 tmp.setShape(ry.ST.ssBox, size=[(w/ fx),(lengthFactor*h/ fy),(heightFactor*w/ fx),.005])
 tmp.setColor([1,0,0,.5])
 
@@ -245,11 +249,23 @@ komo.view(False, "waypoints solution")
 komo.view_close()
 path = komo.getPath()
 
-bot = ry.BotOp(C, False)
+# bot = ry.BotOp(C, False)
 
 input("press ENTER to move to home position")
 
+q_home = bot.get_q()
 bot.home(C)
+while bot.getTimeToEnd()>0:
+    bot.sync(C, .1)
+
+input("press ENTER to move to set position")
+
+bot.moveTo(q_home,2)
+while bot.getTimeToEnd()>0:
+    bot.sync(C, .1)
+
+
+# bot.home(C)
     
 
 bot.gripperOpen(ry._left)

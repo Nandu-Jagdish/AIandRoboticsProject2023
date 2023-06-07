@@ -7,7 +7,7 @@ C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 C.view(False)
 
 input("Press Enter to home")
-bot = ry.BotOp(C, False)
+bot = ry.BotOp(C, True)
 bot.home(C)
 #Wait for the robot to finish homing
 while bot.getTimeToEnd()>0:
@@ -67,7 +67,7 @@ while bot.getTimeToEnd()>0:
     bot.sync(C, .1)
 
 #Move from start to finish with interpolation
-steps = 50
+steps = 5
 komo = ry.KOMO()
 komo.setConfig(C, True)
 komo.setTiming(steps, 1, 1., 2)
