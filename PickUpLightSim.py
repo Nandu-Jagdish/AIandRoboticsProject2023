@@ -12,7 +12,7 @@ C = ry.Config()
 C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 
 cameraFrame = C.getFrame("cameraWrist")
-cameraFrame.setPosition([0,-0.18,1.2])
+#cameraFrame.setPosition([0,-0.18,1.2])
 
 
 
@@ -115,6 +115,8 @@ cameraMatrix = np.array([[fxypxy[0], 0, fxypxy[2]], [0, fxypxy[1], fxypxy[3]], [
 
 # define a wrogn camera matrix with nonsense values
 distCoeffs = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+
+boxSize = 0.02
 
 rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(corners, boxSize, cameraMatrix,
                                                                            distCoeffs)
@@ -229,6 +231,7 @@ C.view()
 print("dome")
 
 komo = ry.KOMO()
+bot.sync(C, .1)
 komo.setConfig(C, True)
 komo.setTiming(2., 1, 5., 0)
 komo.addControlObjective([], 0, 1e-0)
@@ -244,9 +247,13 @@ ret = ry.NLP_Solver() \
     .solve()
 print(ret)
 
-komo.view(False, "waypoints solution")
+#komo.view(False, "waypoints solution")
 
-komo.view_close()
+#komo.view_close()
+
+komo.view(True)
+komo.view_play(True)
+
 path = komo.getPath()
 
 # bot = ry.BotOp(C, False)
