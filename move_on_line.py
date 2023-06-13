@@ -7,7 +7,8 @@ C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 C.view(False)
 
 input("Press Enter to home")
-bot = ry.BotOp(C, True)
+bot = ry.BotOp(C, False
+               )
 bot.home(C)
 #Wait for the robot to finish homing
 while bot.getTimeToEnd()>0:
@@ -39,32 +40,6 @@ bot.move(path_to_start,[10])
 while bot.getTimeToEnd()>0:
     bot.sync(C, .1)
 
-#Move from start to finish without interpolation
-komo = ry.KOMO()
-komo.setConfig(C, True)
-komo.setTiming(1., 1, 1., 2)
-komo.addControlObjective([], 2, 1e-0)
-komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
-komo.addObjective([], ry.FS.vectorZ, ['l_gripper'], ry.OT.eq, [1e1],[0,-1,0])
-komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=goal_pose);
-
-ret = ry.NLP_Solver() \
-    .setProblem(komo.nlp()) \
-    .setOptions( stopTolerance=1e-2, verbose=4 ) \
-    .solve()
-path = komo.getPath()                                                                                                                                                                                                                                                                                                                                           
-
-input("Press Enter to move to goal postion without interpolation")
-bot.move(path,[10])
-while bot.getTimeToEnd()>0:
-    bot.sync(C, .1)
-
-
-input("Press Enter to move to start postion")
-bot.move(path_to_start,[10])
-while bot.getTimeToEnd()>0:
-    bot.sync(C, .1)
 
 #Move from start to finish with interpolation
 steps = 5
@@ -90,6 +65,13 @@ path = komo.getPath()
 
 input("Press Enter to move to goal postion with interpolation")
 bot.move(path,[10])
+while bot.getTimeToEnd()>0:
+    bot.sync(C, .1)
+
+input("Press Enter to home")
+#Move back to home
+bot.home()
+#Wait for the robot to finish homing
 while bot.getTimeToEnd()>0:
     bot.sync(C, .1)
 
