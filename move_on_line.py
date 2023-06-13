@@ -70,7 +70,7 @@ while bot.getTimeToEnd()>0:
 
 input("Press Enter to home")
 #Move back to home
-bot.home()
+bot.home(C)
 #Wait for the robot to finish homing
 while bot.getTimeToEnd()>0:
     bot.sync(C, .1)
