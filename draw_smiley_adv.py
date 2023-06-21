@@ -3,11 +3,11 @@ import numpy as np
 import time
 from svgpathtools import svg2paths2, real, imag
 
-speed_multiplier = 1
+speed_multiplier = 1.2
 secs_to_hide = 1.0
 painting_speed = 0.3
 moving_speed = 0.5
-move_add_time = 0.5
+move_add_time = 0.4
 
 secs_to_hide = secs_to_hide/ speed_multiplier
 painting_speed = painting_speed* speed_multiplier
@@ -39,7 +39,7 @@ C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 C.view(False)
 
 input("Press Enter to home")
-bot = ry.BotOp(C, False)
+bot = ry.BotOp(C, True)
 bot.home(C)
 #Wait for the robot to finish homing
 while bot.getTimeToEnd()>0:
@@ -59,7 +59,10 @@ komo.setTiming(1., 1, secs_to_hide, 2)
 komo.addControlObjective([], 0, 1e-1)
 komo.addControlObjective([], 2, 1e-0)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
+#komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [],[.02]);
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
+
+
 komo.addObjective([], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=home_position);
 komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
 
@@ -123,7 +126,7 @@ for svg_path in svg_paths:
     komo = ry.KOMO()
     komo.setConfig(C, True)
     komo.setTiming(1., 1, secs_to_hide, 2)
-    komo.addControlObjective([], 0, 1e-1)
+    komo.addControlObjective([], 0, 1e-0)
     komo.addControlObjective([], 2, 1e-0)
     komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
     komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
@@ -149,6 +152,7 @@ for svg_path in svg_paths:
     C.setJointState(point_to_camera[-1])
     komo.setConfig(C, True)
     komo.setTiming(1, steps_per_phase, secs_to_paint, 2)
+    komo.addControlObjective([], 0, 1e-0)
     komo.addControlObjective([], 2, 1e-0)
     komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
     komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
@@ -177,7 +181,7 @@ for svg_path in svg_paths:
     komo = ry.KOMO()
     komo.setConfig(C, True)
     komo.setTiming(1., 1, secs_to_hide, 2)
-    #komo.addControlObjective([], 0, 1e-1)
+    komo.addControlObjective([], 0, 1e0)
     komo.addControlObjective([], 2, 1e+0)
     komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
     komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
