@@ -3,7 +3,10 @@ import numpy as np
 import time
 from svgpathtools import svg2paths2, real, imag
 
-speed_multiplier = 1.2
+#joint_limit_offset = [0,0,-0.1,-0.1,0,0,0,0,0,0,0,0,0,0]
+joint_limit_offset = [-0.1]
+
+speed_multiplier = 1.1
 secs_to_hide = 1.0
 painting_speed = 0.3
 moving_speed = 0.5
@@ -59,7 +62,7 @@ komo.setTiming(1., 1, secs_to_hide, 2)
 komo.addControlObjective([], 0, 1e-1)
 komo.addControlObjective([], 2, 1e-0)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-#komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [],[.02]);
+komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
 
 
@@ -101,7 +104,7 @@ for svg_path in svg_paths:
     komo.addControlObjective([], 0, 1e-0)
     komo.addControlObjective([], 2, 1e-0)
     komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-    komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
+    komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
     komo.addObjective([], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
     #komo.addObjective([0.], ry.FS.qItself, [], ry.OT.eq,scale=[1],target=current_joint_state);
     komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=start_position);
@@ -129,7 +132,7 @@ for svg_path in svg_paths:
     komo.addControlObjective([], 0, 1e-0)
     komo.addControlObjective([], 2, 1e-0)
     komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-    komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
+    komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
     komo.addObjective([1.], ry.FS.vectorY, ['l_gripper'], ry.OT.eq, [1e1],[0,-1,0])
     #komo.addObjective([0.], ry.FS.qItself,[], ry.OT.eq,scale=[1],target=path_to_start[-1]);
     komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=start_position);
@@ -155,7 +158,7 @@ for svg_path in svg_paths:
     komo.addControlObjective([], 0, 1e-0)
     komo.addControlObjective([], 2, 1e-0)
     komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-    komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
+    komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
     komo.addObjective([], ry.FS.vectorY, ['l_gripper'], ry.OT.eq, [1e1],[0,-1,0])
     komo.addObjective([0.], ry.FS.qItself,[], ry.OT.eq,scale=[1],target=point_to_camera[-1])
 
@@ -184,7 +187,7 @@ for svg_path in svg_paths:
     komo.addControlObjective([], 0, 1e0)
     komo.addControlObjective([], 2, 1e+0)
     komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-    komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
+    komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
     komo.addObjective([0.], ry.FS.qItself,[], ry.OT.eq,scale=[1e-1],target=path[-1])
     komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
     komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1e1],target=end_position);
