@@ -71,6 +71,11 @@ while bot.getTimeToEnd()>0:
 #quatCam = C.getFrame('externalCamera').getQuaternion()
 #rotMatCam = quaternion_rotation_matrix(quatCam)
 
+#Close gripper to grasp torchlight
+input("Press Enter to open gripper")
+bot.gripperOpen(ry._left)
+while not bot.gripperDone(ry._left):
+    bot.sync(C, .1)
 
 
 #Starting pose
@@ -208,6 +213,12 @@ input("Press Enter to home")
 bot.home(C)
 #Wait for the robot to finish homing
 while bot.getTimeToEnd()>0:
+    bot.sync(C, .1)
+
+#Close gripper to grasp torchlight
+input("Press Enter to open gripper")
+bot.gripperOpen(ry._left)
+while not bot.gripperDone(ry._left):
     bot.sync(C, .1)
 
 input("Press Enter to close script")
