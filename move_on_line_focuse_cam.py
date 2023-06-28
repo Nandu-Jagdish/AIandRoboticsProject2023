@@ -15,7 +15,7 @@ C.view(False)
 cam = C.addFrame( "externalCamera")
 cam.setShape(ry.ST.ssBox, size=[.1,.1,.1,.005])
 cam.setColor([1,0,0,1])
-cam.setPose("t(0 0.4 1.2)")
+cam.setPose("t(0 1.0 1.2)")
 
 def quaternion_rotation_matrix(Q):
     """
@@ -80,8 +80,8 @@ komo.setTiming(2., 1, 1, 1)
 komo.addControlObjective([], 0, 1e-0)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
-komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.ineq, scale=[[0,0,1]],target=[0,0,0]);
-komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.eq, scale=[[1,0,0],[0,1,0]],target=[0,0,0]);
+komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.ineq, scale=[[0,1,0]],target=[0,0,0]);
+komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.eq, scale=[[1,0,0],[0,0,0],[0,0,1]],target=[0,0,0]);
 #komo.addObjective([], ry.FS.positionRel, ['l_gripper', 'externalCamera'], ry.OT.eq, scale=[[1,0,0],[0,0,1]],target=[0,0,0]);
 #komo.addObjective([], ry.FS.quaternionDiff, ['l_gripper', 'externalCamera'], ry.OT.eq, [1e1],target=ry.FS.vectorZ)
 #komo.addObjective([], ry.FS.gazeAt, ['l_gripper', 'externalCamera'], ry.OT.eq, [1e1],target=[-0,-1,0])
@@ -116,8 +116,8 @@ komo.addControlObjective([], 2, 1e0)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
 #komo.addObjective([], ry.FS.quaternionDiff, ['l_gripper', 'externalCamera'], ry.OT.eq, [1e1],target=ry.FS.vectorZ)
-komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.ineq, scale=[[0,0,1]],target=[0,0,0]);
-komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.eq, scale=[[1,0,0],[0,1,0]],target=[0,0,0]);
+komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.ineq, scale=[[0,1,0]],target=[0,0,0]);
+komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.eq, scale=[[1,0,0],[0,0,0],[0,0,1]],target=[0,0,0]);
 #komo.addObjective([], ry.FS.gazeAt, ['l_gripper', 'externalCamera'], ry.OT.eq, [1e1],target=[0,0])
 #komo.addObjective([], ry.FS.vectorZ, ['l_gripper'], ry.OT.eq, [1e1],[0,-1,0])
 
