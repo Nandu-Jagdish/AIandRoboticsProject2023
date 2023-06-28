@@ -1,6 +1,7 @@
 from robotic import ry
 import numpy as np
 import time
+import quaternion
 
 ry.params_add({'Franka/Kp_freq': [30., 30., 30., 20., 10., 15., 10.],
                'Franka/friction': np.array([0.8, 1.0, 0.8, 1.0, 0.9, 0.5, 0.4]),
@@ -70,10 +71,53 @@ while bot.getTimeToEnd()>0:
 #quatCam = C.getFrame('externalCamera').getQuaternion()
 #rotMatCam = quaternion_rotation_matrix(quatCam)
 
+
+
 #Starting pose
 home_pose = C.getFrame('l_gripper').getPosition()
 start_pose = home_pose +[0.3,0,0]
 goal_pose = home_pose +[-0.3,0,0]
+
+
+# find out quaternion for start and end position
+quatStart = 0
+quatGoal = 1
+for elem in [(start_pose, quatStart), (goal_pose, quatGoal)]:
+    komo = ry.KOMO()
+    komo.setConfig(C, True)
+    komo.setTiming(2., 1, 1, 1)
+    komo.addControlObjective([], 0, 1e-0)
+    if(elem[1]==0):
+        komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.ineq, scale=[[0,0,1]],target=[0,0,0]);
+        komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.eq, scale=[[1,0,0],[0,1,0],[0,0,0]],target=[0,0,0]);
+    else:
+        komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.ineq, scale=[[0,1,0]],target=[0,0,0]);
+        komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.eq, scale=[[1,0,0],[0,0,0],[0,0,1]],target=[0,0,0]);
+    komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=elem[0]);
+    komo.addObjective([2.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=elem[0]);
+
+    ret = ry.NLP_Solver() \
+    .setProblem(komo.nlp()) \
+    .setOptions( stopTolerance=1e-2, verbose=4 ) \
+    .solve()
+
+    path = komo.getPath()
+    C.setJointState(path[-1])
+
+    if (elem[1] == 0):
+        quatStart = C.feature(ry.FS.quaternion, ['l_gripper']).eval(C)[0]
+    else:
+        quatGoal = C.feature(ry.FS.quaternion, ['l_gripper']).eval(C)[0]
+print(quatStart)
+print(quatGoal)
+
+
+#quatStart = np.quaternion(quatStart.z, quatStart.w, quatStart.x, quatStart.y)
+#quatGoal = np.quaternion(quatGoal.z, quatGoal.w, quatGoal.x, quatGoal.y)
+
+input("wait")
+
+
 komo = ry.KOMO()
 komo.setConfig(C, True)
 komo.setTiming(2., 1, 1, 1)
@@ -87,6 +131,7 @@ komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.e
 #komo.addObjective([], ry.FS.gazeAt, ['l_gripper', 'externalCamera'], ry.OT.eq, [1e1],target=[-0,-1,0])
 komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=home_pose);
 komo.addObjective([2.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=start_pose);
+komo.addObjective([2.], ry.FS.quaternion,['l_gripper'], ry.OT.eq,scale=[],target=quatStart);
 
 ret = ry.NLP_Solver() \
     .setProblem(komo.nlp()) \
@@ -98,11 +143,19 @@ komo.view(True, "optimization result")
 #while(komo.view_play(True, .5)):
 #	print("hi")
 
+
+
 path_to_start = komo.getPath() 
+
+
+
+quatStart = np.quaternion(quatStart[0], quatStart[1], quatStart[2], quatStart[3])
+quatGoal = np.quaternion(quatGoal[0], quatGoal[1], quatGoal[2], quatGoal[3])
+
 
 #Move from home to start
 input("Press Enter to move to start postion")
-bot.move(path_to_start,[10])
+bot.move(path_to_start,[5])
 while bot.getTimeToEnd()>0:
     bot.sync(C, .1)
 
@@ -116,15 +169,21 @@ komo.addControlObjective([], 2, 1e0)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
 #komo.addObjective([], ry.FS.quaternionDiff, ['l_gripper', 'externalCamera'], ry.OT.eq, [1e1],target=ry.FS.vectorZ)
-komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.ineq, scale=[[0,1,0]],target=[0,0,0]);
-komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.eq, scale=[[1,0,0],[0,0,0],[0,0,1]],target=[0,0,0]);
+#komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.ineq, scale=[[0,1,0]],target=[0,0,0]);
+#komo.addObjective([], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.eq, scale=[[1,0,0],[0,0,0],[0,0,1]],target=[0,0,0]);
 #komo.addObjective([], ry.FS.gazeAt, ['l_gripper', 'externalCamera'], ry.OT.eq, [1e1],target=[0,0])
-#komo.addObjective([], ry.FS.vectorZ, ['l_gripper'], ry.OT.eq, [1e1],[0,-1,0])
+#komo.addObjective([], ry.FS.vectorZ, ['l_gripper'], ry.OT.eq, [1e1],[0,-1,0])  
 
 for i in range(steps):
     i=i+1
     waypoint = start_pose + (goal_pose-start_pose)*i/steps
+    print(i/steps)
+    wayquaternion = quaternion.slerp_evaluate(quatStart, quatGoal, i/steps)
+    wayquaternion = [wayquaternion.w, wayquaternion.x, wayquaternion.y, wayquaternion.z]
+    #wayquaternion = [wayquaternion.x, wayquaternion.y, wayquaternion.z, wayquaternion.w]
+    print(wayquaternion)
     komo.addObjective([i], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=waypoint);
+    komo.addObjective([i], ry.FS.quaternion,['l_gripper'], ry.OT.eq,scale=[],target=wayquaternion);
 
 ret = ry.NLP_Solver() \
     .setProblem(komo.nlp()) \
