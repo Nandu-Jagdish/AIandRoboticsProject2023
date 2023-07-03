@@ -8,20 +8,19 @@ import matplotlib.pyplot as plt
 import quaternion
 
 C = ry.Config()
-#C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandasTable.g'))
+# C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandasTable.g'))
 C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
+cameraType = 'cameraWrist'
 
-cameraFrame = C.getFrame("cameraWrist")
-#cameraFrame.setPosition([0,-0.18,1.2])
-
-
+cameraFrame = C.getFrame(cameraType)
+# cameraFrame.setPosition([0,-0.18,1.2])
 
 boxSize = 0.07
 heightFactor = 0.7
 lengthFactor = 2.5
 
 obj = C.addFrame('obj')
-obj.setPose('t(0. 0.1 0.8)')
+obj.setPose('t(0. 0.5 0.8)')
 obj.setShape(ry.ST.ssBox, size=[boxSize,boxSize*lengthFactor,boxSize*heightFactor,.005])
 obj.setColor([1,.0,0])
 obj.setMass(.1)
@@ -55,19 +54,18 @@ C.view()
 
 input("Press Enter to continue...")
 
-bot = ry.BotOp(C, True)
-# bot.home(C)
+bot = ry.BotOp(C, False)
+bot.home(C)
 
-
-rgb, depth = bot.getImageAndDepth("cameraWrist")
-
-input("Press Enter to continue...")
-
-rgb, depth = bot.getImageAndDepth("cameraWrist")
+rgb, depth = bot.getImageAndDepth(cameraType)
 
 input("Press Enter to continue...")
 
-rgb, depth = bot.getImageAndDepth("cameraWrist")
+rgb, depth = bot.getImageAndDepth(cameraType)
+
+input("Press Enter to continue...")
+
+rgb, depth = bot.getImageAndDepth(cameraType)
 
 fig = plt.figure(figsize=(10,5))
 axs = fig.subplots(1, 2)
@@ -79,10 +77,10 @@ time.sleep(0.5)
 
 input("Press Enter to continue...")
 
-fxypxy = bot.getCameraFxypxy("cameraWrist")
+fxypxy = bot.getCameraFxypxy(cameraType)
 print(fxypxy)
 depth.shape
-cameraFrame = C.getFrame("cameraWrist")
+cameraFrame = C.getFrame(cameraType)
 
 #include opencv
 import cv2
@@ -115,8 +113,6 @@ cameraMatrix = np.array([[fxypxy[0], 0, fxypxy[2]], [0, fxypxy[1], fxypxy[3]], [
 
 # define a wrogn camera matrix with nonsense values
 distCoeffs = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
-
-boxSize = 0.02
 
 rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(corners, boxSize, cameraMatrix,
                                                                            distCoeffs)
@@ -187,8 +183,8 @@ R, t = cameraFrame.getRotationMatrix(), cameraFrame.getPosition()
 H, W = depth.shape
 
     
-# Z = depth[x,y]
-Z = 0
+# get depth at pixel
+Z = depth[y, x]
 
 point = [1, 2, 3]
 Z += (h/ fx)*0.5
@@ -198,12 +194,14 @@ point[0] = Z * (x - px) / fx;
 point[1] = -Z * (y - py) / fy;
 point[2] = -Z
 
-# h = Z * (h);
-# w = Z * w
+h = Z * (h);
+w = Z * w
 
-tmp = C.addFrame( "center of red", 'cameraWrist')
+tmp = C.addFrame( "center of red", cameraType)
 tmp.setShape(ry.ST.ssBox, size=[(w/ fx),(lengthFactor*h/ fy),(heightFactor*w/ fx),.005])
-tmp.setColor([1,0,0,.5])
+# tmp.setColor([1,0,0,.5])
+# set blue colour
+tmp.setColor([0,0,1,.5])
 
 tmp.setRelativePosition(arucoPoint)
 
@@ -231,7 +229,6 @@ C.view()
 print("dome")
 
 komo = ry.KOMO()
-bot.sync(C, .1)
 komo.setConfig(C, True)
 komo.setTiming(2., 1, 5., 0)
 komo.addControlObjective([], 0, 1e-0)
@@ -247,32 +244,16 @@ ret = ry.NLP_Solver() \
     .solve()
 print(ret)
 
-#komo.view(False, "waypoints solution")
+komo.view(True, "waypoints solution")
 
-#komo.view_close()
-
-komo.view(True)
-komo.view_play(True)
-
+# komo.view_close()
 path = komo.getPath()
 
-# bot = ry.BotOp(C, False)
+bot = ry.BotOp(C, False)
 
 input("press ENTER to move to home position")
 
-q_home = bot.get_q()
 bot.home(C)
-while bot.getTimeToEnd()>0:
-    bot.sync(C, .1)
-
-input("press ENTER to move to set position")
-
-bot.moveTo(q_home,2)
-while bot.getTimeToEnd()>0:
-    bot.sync(C, .1)
-
-
-# bot.home(C)
     
 
 bot.gripperOpen(ry._left)
