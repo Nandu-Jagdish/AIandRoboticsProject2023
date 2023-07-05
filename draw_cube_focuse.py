@@ -75,7 +75,7 @@ komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, 
 
 ret = ry.NLP_Solver() \
     .setProblem(komo.nlp()) \
-    .setOptions( stopTolerance=1e-2, verbose=4 ) \
+    .setOptions( stopTolerance=1e-2, verbose=0 ) \
     .solve()
 point_away_1 = komo.getPath()
 print(ret)
@@ -92,16 +92,14 @@ input("Press Enter to start")
 
 # define points of cube
 points = []
-points.append(np.array([0,0,0]))
-points.append(np.array([0.707, 0.707, 0]))
-points.append(np.array([0.707, 0.707, 1]))
-points.append(np.array([0,0,1]))
-points.append(np.array([+0.707, -0.707, 0]))
-points.append(np.array([+2*0.707, 0, 0]))
-points.append(np.array([+2*0.707, 0, 1]))
-points.append(np.array([+0.707, -0.707, 1]))
-
-
+points.append([0.,0.,0.])
+points.append([0.707, 0.707, 0.])
+points.append([0.707, 0.707, 1.])
+points.append([0.,0.,1.])
+points.append([+0.707, -0.707, 0.])
+points.append([+2*0.707, 0., 0.])
+points.append([+2*0.707, 0., 1.])
+points.append([+0.707, -0.707, 1.])
 
 trajectories = []
 # foregorund square
@@ -124,20 +122,52 @@ size_of_cube = 0.2
 
 #multiply trajectories with size of cube
 for trajectory in trajectories:
-    trajectory[0] = trajectory[0]*size_of_cube
-    trajectory[1] = trajectory[1]*size_of_cube
+    trajectory[0] = (np.array(trajectory[0])*size_of_cube).tolist()
+    trajectory[1] = (np.array(trajectory[1])*size_of_cube).tolist()
 
 
 resolution = 50
 
+last_trajectory_end_point = np.array([0,0,0])
 
-
-for trajectory in trajectories:
-
-    #x_vec,z_vec,length = getXZ(svg_path, svg_attributes)
-    #print(x_vec)
-    #input("Press Enter to start")
+def findNextTrajectory(last_trajectory_end_point, trajectories):
+    # GREEDY ALGORITHM TO FIND CLOSEST NEXT TRAJECTORY
+    first_or_second = 0
+    trajectory = 0
+    closesDistance = 999
+    for t in trajectories:
+        # check if first point of trajectory is close to last point of current trajectory
+        distanceFirst = np.linalg.norm(t[0]-last_trajectory_end_point)
+        if distanceFirst < closesDistance:
+            closesDistance = distanceFirst
+            trajectory = t
+            first_or_second = 0
+        # check if second point of trajectory is close to last point of current trajectory
+        distanceSecond = np.linalg.norm(t[1]-last_trajectory_end_point)
+        if distanceSecond < closesDistance:
+            closesDistance = distanceSecond
+            trajectory = t
+            first_or_second = 1
     
+    print("Trajectory: ", trajectory)
+    trajectories.remove(trajectory)
+    if first_or_second == 0:
+        return [trajectory[0], trajectory[1]]
+    else:
+        return [trajectory[1], trajectory[0]]
+
+total_trajectories = len(trajectories)    
+nextTrajectory = findNextTrajectory(last_trajectory_end_point, trajectories)
+
+for i in range(total_trajectories):
+    print("ITERATION: ", i)
+    trajectory = nextTrajectory
+
+    trajectory[0] = np.array(trajectory[0])
+    trajectory[1] = np.array(trajectory[1])
+
+    last_trajectory_end_point = trajectory[1]
+
 
     # convert trajectories to x_vec, y_vec, z_vec and length
     x_vec = []
@@ -145,6 +175,7 @@ for trajectory in trajectories:
     z_vec = []
     #length is N2 norm of position difference
     length = np.linalg.norm(trajectory[0]-trajectory[1])
+
     for i in range(resolution):
         x_vec.append(trajectory[0][0]+(trajectory[1][0]-trajectory[0][0])*i/resolution)
         y_vec.append(trajectory[0][1]+(trajectory[1][1]-trajectory[0][1])*i/resolution)
@@ -163,58 +194,68 @@ for trajectory in trajectories:
     print(start_position)
 
     dis_to_start = np.linalg.norm(start_position-current_position)
+    if(len(trajectories)>0):
+        nextTrajectory = findNextTrajectory(last_trajectory_end_point, trajectories)
+        dis_to_next = np.linalg.norm(last_trajectory_end_point-np.array(nextTrajectory[0]))
+    else:
+        dis_to_next = 999
     print(f"Distance to start {dis_to_start}")
-
-    secs_to_move = dis_to_start*1/moving_speed
-    #Move to start position
-    komo = ry.KOMO()
-    komo.setConfig(C, True)
-    komo.setTiming(1., 1, secs_to_move, 2)
-    komo.addControlObjective([], 0, 1e-0)
-    komo.addControlObjective([], 2, 1e-0)
-    komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-    komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
-    komo.addObjective([], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
-    #komo.addObjective([0.], ry.FS.qItself, [], ry.OT.eq,scale=[1],target=current_joint_state);
-    komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=start_position);
-
-    ret = ry.NLP_Solver() \
-        .setProblem(komo.nlp()) \
-        .setOptions( stopTolerance=1e-2, verbose=4 ) \
-        .solve()
-    path_to_start = komo.getPath()
-    #print(ret)
-
-    
-
-    #Move from home to start
-    #input("Press Enter to move to start postion")
-    bot.move(path_to_start,[secs_to_move+move_add_time])
-    while bot.getTimeToEnd()>0:
-        bot.sync(C, .1)
+    print(f"Distance to next {dis_to_next}")
 
 
-    #Turn light towards camera
-    komo = ry.KOMO()
-    komo.setConfig(C, True)
-    komo.setTiming(1., 1, secs_to_hide, 2)
-    komo.addControlObjective([], 0, 1e-0)
-    komo.addControlObjective([], 2, 1e-0)
-    komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-    komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
-    #komo.addObjective([1.], ry.FS.vectorY, ['l_gripper'], ry.OT.eq, [1e1],[0,-1,0])
-    # make gripper look into external camera
-    komo.addObjective([1.], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.ineq, scale=[[0,1,0]],target=[0,0,0]);
-    komo.addObjective([1.], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.eq, scale=[[1,0,0],[0,0,0],[0,0,1]],target=[0,0,0]);
-    #komo.addObjective([0.], ry.FS.qItself,[], ry.OT.eq,scale=[1],target=path_to_start[-1]);
-    komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=start_position);
+    if(dis_to_start>0.1):
+        secs_to_move = dis_to_start*1/moving_speed
+        #Move to start position
+        komo = ry.KOMO()
+        komo.setConfig(C, True)
+        komo.setTiming(1., 1, secs_to_move, 2)
+        komo.addControlObjective([], 0, 1e-0)
+        komo.addControlObjective([], 2, 1e-0)
+        komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
+        komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
+        komo.addObjective([], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
+        #komo.addObjective([0.], ry.FS.qItself, [], ry.OT.eq,scale=[1],target=current_joint_state);
+        komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=start_position);
 
-    ret = ry.NLP_Solver() \
-        .setProblem(komo.nlp()) \
-        .setOptions( stopTolerance=1e-2, verbose=4 ) \
-        .solve()
-    point_to_camera = komo.getPath()
-    #print(ret)
+        ret = ry.NLP_Solver() \
+            .setProblem(komo.nlp()) \
+            .setOptions( stopTolerance=1e-2, verbose=0 ) \
+            .solve()
+        path_to_start = komo.getPath()
+        #print(ret)
+
+
+
+        #Move from home to start
+        #input("Press Enter to move to start postion")
+        print("Moving to start position with time: ", secs_to_move)
+        bot.move(path_to_start,[secs_to_move+move_add_time])
+        while bot.getTimeToEnd()>0:
+            bot.sync(C, .1)
+
+
+        #Turn light towards camera
+        komo = ry.KOMO()
+        komo.setConfig(C, True)
+        komo.setTiming(1., 1, secs_to_hide, 2)
+        komo.addControlObjective([], 0, 1e-0)
+        komo.addControlObjective([], 2, 1e-0)
+        komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
+        komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
+        #komo.addObjective([1.], ry.FS.vectorY, ['l_gripper'], ry.OT.eq, [1e1],[0,-1,0])
+        # make gripper look into external camera
+        komo.addObjective([1.], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.ineq, scale=[[0,1,0]],target=[0,0,0]);
+        komo.addObjective([1.], ry.FS.positionRel, ['externalCamera','l_gripper'], ry.OT.eq, scale=[[1,0,0],[0,0,0],[0,0,1]],target=[0,0,0]);
+        #komo.addObjective([0.], ry.FS.qItself,[], ry.OT.eq,scale=[1],target=path_to_start[-1]);
+        komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=start_position);
+
+        ret = ry.NLP_Solver() \
+            .setProblem(komo.nlp()) \
+            .setOptions( stopTolerance=1e-2, verbose=0 ) \
+            .solve()
+        point_to_camera = komo.getPath()
+        C.setJointState(point_to_camera[-1])
+        #print(ret)
 
     #komo.view(True, "path to rotate")
     #komo.view_play(0.3)
@@ -224,7 +265,6 @@ for trajectory in trajectories:
     steps_per_phase = len(x_vec)
     secs_to_paint = length*(1/painting_speed)
     komo = ry.KOMO()
-    C.setJointState(point_to_camera[-1])
     komo.setConfig(C, True)
     komo.setTiming(1, steps_per_phase, secs_to_paint, 2)
     komo.addControlObjective([], 0, 1e-0)
@@ -246,35 +286,36 @@ for trajectory in trajectories:
 
     ret = ry.NLP_Solver() \
         .setProblem(komo.nlp()) \
-        .setOptions( stopTolerance=1e-2, verbose=4 ) \
+        .setOptions( stopTolerance=1e-2, verbose=0 ) \
         .solve()
     path = komo.getPath()
     #print(ret)
 
 
-    #Rotate torchlight away from camera
-    end_position = home_position + offset + [x_vec[-1],y_vec[-1],z_vec[-1]] # set end position
+    if dis_to_next > 0.1:
+        #Rotate torchlight away from camera
+        end_position = home_position + offset + [x_vec[-1],y_vec[-1],z_vec[-1]] # set end position
 
-    print(start_position)
-    print(end_position)
-    C.setJointState(path[-1])
-    komo = ry.KOMO()
-    komo.setConfig(C, True)
-    komo.setTiming(1., 1, secs_to_hide, 2)
-    komo.addControlObjective([], 0, 1e0)
-    komo.addControlObjective([], 2, 1e+0)
-    komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-    komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
-    komo.addObjective([0.], ry.FS.qItself,[], ry.OT.eq,scale=[1e-1],target=path[-1])
-    komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
-    komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1e1],target=end_position);
+        print(start_position)
+        print(end_position)
+        C.setJointState(path[-1])
+        komo = ry.KOMO()
+        komo.setConfig(C, True)
+        komo.setTiming(1., 1, secs_to_hide, 2)
+        komo.addControlObjective([], 0, 1e0)
+        komo.addControlObjective([], 2, 1e+0)
+        komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
+        komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
+        komo.addObjective([0.], ry.FS.qItself,[], ry.OT.eq,scale=[1e-1],target=path[-1])
+        komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
+        komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1e1],target=end_position);
 
-    ret = ry.NLP_Solver() \
-        .setProblem(komo.nlp()) \
-        .setOptions( stopTolerance=1e-2, verbose=4 ) \
-        .solve()
-    point_away = komo.getPath()
-    #print(ret)
+        ret = ry.NLP_Solver() \
+            .setProblem(komo.nlp()) \
+            .setOptions( stopTolerance=1e-2, verbose=0 ) \
+            .solve()
+        point_away = komo.getPath()
+        #print(ret)
 
     # add tiny cube after each movement to capture cube
     cubePoint = C.addFrame( "externalCamera")
@@ -283,18 +324,31 @@ for trajectory in trajectories:
     cubePoint.setPosition(C.getFrame("l_gripper").getPosition())
     C.view()
 
+
+
+    if (dis_to_start > 0.1):
     #input("Press Enter to point to camera")
-    bot.move(point_to_camera,[secs_to_hide+move_add_time])
-    while bot.getTimeToEnd()>0:
-        bot.sync(C, .1)
+        bot.move(point_to_camera,[secs_to_hide+move_add_time])
+        while bot.getTimeToEnd()>0:
+            bot.sync(C, .1)
     #input("Press Enter to move to goal postion with interpolation") 
     bot.move(path,[secs_to_paint+move_add_time])
+    start_time = time.time()
     while bot.getTimeToEnd()>0:
+        # add tiny cube after each 30 ms to capture cube
+        if time.time()-start_time > 0.09:
+            start_time = time.time()
+            cubePoint = C.addFrame( "externalCamera")
+            cubePoint.setShape(ry.ST.ssBox, size=[.02,.02,.02,.005])
+            cubePoint.setColor([0,1,0,1])
+            cubePoint.setPosition(C.getFrame("l_gripper").getPosition())
+            C.view()
         bot.sync(C, .1)
-    #input("Press Enter to rotate torchlight away from camera")
-    bot.move(point_away,[secs_to_hide+move_add_time])
-    while bot.getTimeToEnd()>0:
-        bot.sync(C, .1)
+    if (dis_to_next > 0.1):
+        #input("Press Enter to rotate torchlight away from camera")
+        bot.move(point_away,[secs_to_hide+move_add_time])
+        while bot.getTimeToEnd()>0:
+            bot.sync(C, .1)
 
 input("Press Enter to home")
 #Move back to home
