@@ -1,3 +1,4 @@
+# %%
 #import sys, os
 #sys.path.append(os.path.expanduser('~/git/botop/build'))
 #import libry as ry
@@ -8,19 +9,18 @@ import matplotlib.pyplot as plt
 import quaternion
 
 C = ry.Config()
-# C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandasTable.g'))
-C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
-cameraType = 'cameraWrist'
+C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandasTable.g'))
+#C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 
-cameraFrame = C.getFrame(cameraType)
-# cameraFrame.setPosition([0,-0.18,1.2])
+cameraFrame = C.getFrame("camera")
+cameraFrame.setPosition([0,-0.18,1.2])
 
 boxSize = 0.07
 heightFactor = 0.7
 lengthFactor = 2.5
 
 obj = C.addFrame('obj')
-obj.setPose('t(0. 0.5 0.8)')
+obj.setPose('t(0. 0.1 0.8)')
 obj.setShape(ry.ST.ssBox, size=[boxSize,boxSize*lengthFactor,boxSize*heightFactor,.005])
 obj.setColor([1,.0,0])
 obj.setMass(.1)
@@ -52,35 +52,36 @@ for i in range(6):
 
 C.view()
 
-input("Press Enter to continue...")
-
+# %%
 bot = ry.BotOp(C, False)
 bot.home(C)
 
-rgb, depth = bot.getImageAndDepth(cameraType)
+rgb, depth = bot.getImageAndDepth("camera")
 
-input("Press Enter to continue...")
-
-rgb, depth = bot.getImageAndDepth(cameraType)
-
-input("Press Enter to continue...")
-
-rgb, depth = bot.getImageAndDepth(cameraType)
-
-# fig = plt.figure(figsize=(10,5))
-# axs = fig.subplots(1, 2)
-# axs[0].imshow(rgb)
-# axs[1].matshow(depth)
-# plt.show()
+fig = plt.figure(figsize=(10,5))
+axs = fig.subplots(1, 2)
+axs[0].imshow(rgb)
+axs[1].matshow(depth)
+plt.show()
 import time
 time.sleep(0.5)
 
-input("Press Enter to continue...")
+# %% [markdown]
+# From the lecture slides, we learned
+# $$\hat x = f\frac{X}{Z}+p_x,~\hat y = f\frac{Y}{Z}+p_y,$$
+# where
+# - $\hat x, \hat y$ are image coordinates ($u$-$v$ or pixel),
+# - $X, Y, Z$ represent camera coordinates, and
+# - $p_x, p_y$ are the image offset.
+# 
+# Since we know the $Z$ value of each pixel, we can compute their 3D coordinate (in camera frame):
+# $$ X = Z\frac{\hat x-p_x}{f},~  Y = Z\frac{\hat y-p_y}{f}.$$
 
-fxypxy = bot.getCameraFxypxy(cameraType)
+# %%
+fxypxy = bot.getCameraFxypxy("camera")
 print(fxypxy)
 depth.shape
-cameraFrame = C.getFrame(cameraType)
+cameraFrame = C.getFrame("camera")
 
 #include opencv
 import cv2
@@ -114,45 +115,48 @@ cameraMatrix = np.array([[fxypxy[0], 0, fxypxy[2]], [0, fxypxy[1], fxypxy[3]], [
 # define a wrogn camera matrix with nonsense values
 distCoeffs = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
 
+rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(corners, boxSize, cameraMatrix, distCoeffs)
+
+print("The pose:")
+print(rvec, tvec)
+print(rvec.shape, tvec.shape)
+print(len(rvec), len(tvec))
+
 rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(corners, boxSize, cameraMatrix,
                                                                            distCoeffs)
 (rvec - tvec).any()  # get rid of that nasty numpy value array error
 cv2.aruco.drawDetectedMarkers(frame, corners)  # Draw A square around the markers
 cv2.drawFrameAxes(frame, cameraMatrix, distCoeffs, rvec, tvec, 0.01)  # Draw Axis
 
-cameraDistanceFactor = -1.0
+# create virtual blue cube at rvec tvec position
+#test = C.addFrame("test", "camera")
+#test.setShape(ry.ST.ssBox, [0.3, 0.3, 0.3, 0.01])
+#test.setColor([0, 0, 1])
+cameraFactor = -1.0
 print('t(' + str(tvec[0][0][0]) + ' ' + str(tvec[0][0][1]) + ' ' + str(tvec[0][0][2]) + ') r(' + str(rvec[0][0][0]) + ' ' + str(rvec[0][0][1]) + ' ' + str(rvec[0][0][2]) + ')')
+#test.setPose('t(' + str(tvec[0][0][0]) + ' ' + str(tvec[0][0][1]) + ' ' + str(tvec[0][0][2]) + ') r(' + str(rvec[0][0][0]) + ' ' + str(rvec[0][0][1]) + ' ' + str(rvec[0][0][2]) + ')')
+#est.setRelativePose('t(' + str(cameraFactor*tvec[0][0][0]) + ' ' + str(cameraFactor*tvec[0][0][1]) + ' ' + str(cameraFactor*tvec[0][0][2]) + ')')
 
-arucoPoint = [cameraDistanceFactor*tvec[0][0][0], cameraDistanceFactor*tvec[0][0][1], cameraDistanceFactor*tvec[0][0][2]]
+arucoPoint = [cameraFactor*tvec[0][0][0], cameraFactor*tvec[0][0][1], cameraFactor*tvec[0][0][2]]
 
 q = quaternion.from_rotation_vector(rvec)
 
 q = quaternion.as_euler_angles(q)
-#q[0][0][2] = -q[0][0][2]
-
+print(q)
+q[0][0][2] = -q[0][0][2]
+print(q)
 
 q = quaternion.from_euler_angles(q)
-
+print(q)
 b = quaternion.as_float_array([q])
-
+print(b)
+#test.setRelativeQuaternion(b[0])
+# negate z axes
 arucoQuaternion = b[0]
 
-def mapTOWorldSpace(point,z,fxypxy):
-    '''
-        Maps a point from pixel space to world space
-        :param point: The point to be mapped    
-        :param z: The depth of the point
-        :param fxypxy: The camera matrix and distortion coefficients
-        :return: The point in world space
-    '''
-    fx, fy = fxypxy[0], fxypxy[1]
-    px, py = fxypxy[2], fxypxy[3]
-    x = (point[0] - px) * z / fx
-    y = (point[1] - py) * -z / fy
-    z = -z
-    point = np.array([x, y, z])
 
-    return point
+# convert rvec to quaternion
+# define quaternion or import it
 
 
 C.view()
@@ -178,132 +182,7 @@ if ids is not None:
         x = int((c1[0][0] + c1[1][0] + c1[2][0] + c1[3][0] + c2[0][0] + c2[1][0] + c2[2][0] + c2[3][0])/8)
         y = int((c1[0][1] + c1[1][1] + c1[2][1] + c1[3][1] + c2[0][1] + c2[1][1] + c2[2][1] + c2[3][1])/8)
         cv2.circle(frame, (x, y), 4, (0, 0, 255), -1)
-
-# for each marker get the center of the edge of all 4 sides
-if ids is not None:
-    for i in range(len(ids)):
-        c = corners[i][0]
-        # top left
-        x1 = int((c[0][0] + c[1][0])/2)
-        y1 = int((c[0][1] + c[1][1])/2)
-        cv2.circle(frame, (x1, y1), 4, (0, 0, 255), -1)
-        # top right
-        x2 = int((c[1][0] + c[2][0])/2)
-        y2 = int((c[1][1] + c[2][1])/2)
-        cv2.circle(frame, (x2, y2), 4, (0, 0, 255), -1)
-        # bottom right
-        x3 = int((c[2][0] + c[3][0])/2)
-        y3 = int((c[2][1] + c[3][1])/2)
-        cv2.circle(frame, (x3, y3), 4, (0, 0, 255), -1)
-        # bottom left
-        x4 = int((c[3][0] + c[0][0])/2)
-        y4 = int((c[3][1] + c[0][1])/2)
-        cv2.circle(frame, (x4, y4), 4, (0, 0, 255), -1)
-       
-
-
-
-
-
-# display frame using matplotlib
-plt.imshow(frame)
-plt.show()
-
-       
-def colourDetection(frame,colour):
-    #convrt to opencv bgr
-    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-    #convert to hsv
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    #define range of colour in hsv
-    if colour == "red":
-        lower = np.array([0,50,50])
-        upper = np.array([10,255,255])
-    elif colour == "green":
-        lower = np.array([50,100,100])
-        upper = np.array([70,255,255])
-    elif colour == "blue":
-        lower = np.array([110,50,50])
-        upper = np.array([130,255,255])
-    #threshold hsv image to get only colour
-    mask = cv2.inRange(hsv, lower, upper)
-    #bitwise and mask and original image
-    res = cv2.bitwise_and(frame,frame, mask= mask)
-    #display frame
-    #cv2.imshow('frame',frame)
-    #cv2.imshow('mask',mask)
-    #cv2.imshow('res',res)
-    #check if user pressed 'q'
-    #cv2.waitKey(0)
-    #cv2.destroyAllWindows()
-    return res
-
-def colourSeperation(frame,mask):
-    #convert to hsv
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    #bitwise and mask and original image
-    res = cv2.bitwise_and(frame,frame, mask= mask)
-    #display frame
-    #cv2.imshow('frame',frame)
-    #cv2.imshow('mask',mask)
-    #cv2.imshow('res',res)
-    #check if user pressed 'q'
-    #cv2.waitKey(0)
-    #cv2.destroyAllWindows()
-    return res
-
-def contourDetection(frame):
-    # copy frame
-    original = frame.copy()
-    # convert to grayscale
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    contours, hierarchy = cv2.findContours(frame, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    # draw all contours
-    cv2.drawContours(original, contours, -1, (0, 255, 0), 3)
-    # find center of contour
-    M = cv2.moments(contours[0])
-    cx = int(M['m10']/M['m00'])
-    cy = int(M['m01']/M['m00'])
-    # draw center of contour
-    cv2.circle(original, (cx, cy), 4, (0, 0, 255), -1)
-    return cx,cy,original
-
-
-redColour = colourDetection(frame,'red')
-cx,cy,redColour = contourDetection(redColour)
-plt.imshow(redColour)
-plt.show()
-
-
-
-
-worldPoint1 = mapTOWorldSpace((x1,y1),depth[y1,x1],fxypxy)
-worldPoint2 = mapTOWorldSpace((x2,y2),depth[y2,x2],fxypxy)
-worldPoint3 = mapTOWorldSpace((x3,y3),depth[y3,x3],fxypxy)
-worldPoint4 = mapTOWorldSpace((x4,y4),depth[y4,x4],fxypxy)
-
-worldFrame1 = C.addFrame("worldFrame1Point")
-worldFrame1.setPosition(worldPoint1)
-worldFrame1.setShape(ry.ST.sphere, [0.009])
-worldFrame1.setColor([1,0,0])
-
-worldFrame2 = C.addFrame("worldFrame2Point")
-worldFrame2.setPosition(worldPoint2)
-worldFrame2.setShape(ry.ST.sphere, [0.009])
-worldFrame2.setColor([0,1,0])
-
-worldFrame3 = C.addFrame("worldFrame3Point")
-worldFrame3.setPosition(worldPoint3)
-worldFrame3.setShape(ry.ST.sphere, [0.009])
-worldFrame3.setColor([0,0,1])
-
-worldFrame4 = C.addFrame("worldFrame4Point")
-worldFrame4.setPosition(worldPoint4)
-worldFrame4.setShape(ry.ST.sphere, [0.009])
-worldFrame4.setColor([1,1,0])
-
- 
-
+        
 
 # display frame
 #cv2.imshow('frame', frame)
@@ -316,16 +195,29 @@ print(w,h)
 #del bot
 #del C
 
-input("Press Enter to continue...")
-
+# %%
 fx, fy = fxypxy[0], fxypxy[1]
 px, py = fxypxy[2], fxypxy[3]
 R, t = cameraFrame.getRotationMatrix(), cameraFrame.getPosition()
 H, W = depth.shape
 
+
+
+print(px)
+print(py)
+
     
-# get depth at pixel
-Z = depth[y, x]
+Z = depth[x,y]
+# print depth at all corners of the box
+print(depth[x-w//2,y-h//2])
+print(depth[x+w//2,y-h//2])
+print(depth[x-w//2,y+h//2])
+print(depth[x+w//2,y+h//2])
+print(Z)
+
+#temp = x
+#y = x # 0.007, -0.32 , -1.157
+#x = temp
 
 point = [1, 2, 3]
 Z += (h/ fx)*0.5
@@ -337,21 +229,87 @@ point[2] = -Z
 
 h = Z * (h);
 w = Z * w
+print(str(point))
 
-tmp = C.addFrame( "center of red", cameraType)
+## Coordinate transformation (from camera to world) 
+#point = R@point 
+
+tmp = C.addFrame( "center of red", 'camera')
+# TODO fix rotation of aruco in sim, dotn switch x and y
 tmp.setShape(ry.ST.ssBox, size=[(w/ fx),(lengthFactor*h/ fy),(heightFactor*w/ fx),.005])
-# tmp.setColor([1,0,0,.5])
-# set blue colour
-tmp.setColor([0,0,1,.5])
-
+tmp.setColor([1,0,0,.5])
+#tmp.setRelativePosition(point)
+#arucoPoint[2] = arucoPoint[2] - ((heightFactor*w)/ fx)*0.5
 tmp.setRelativePosition(arucoPoint)
+#tmp.setRelativePose('d(45 0 1 0)')
+quat = cameraFrame.getQuaternion()
+quat[0] = -quat[0]
+#tmp.setRelativeQuaternion(quat)
+print(arucoQuaternion)
 
+print(arucoQuaternion[0][0])
+
+
+print(-arucoQuaternion[0][0][0])
+
+# flip z axis of quaternion
+
+#way2 = C.addFrame('way2', 'camera')
+#way2.setShape(ry.ST.marker, size=[.3])
+#way2.setRelativePose('t(0 0 .1)')
+#way2.setRelativeQuaternion(arucoQuaternion.copy())
+#
+#arucoQuaternion[0][0][0] = arucoQuaternion[0][0][0]
+#arucoQuaternion[0][0][1] = arucoQuaternion[0][0][1]
+#arucoQuaternion[0][0][2] = -arucoQuaternion[0][0][2]
+#arucoQuaternion[0][0][3] = -arucoQuaternion[0][0][3]
+#
+#way3 = C.addFrame('way3', 'camera')
+#way3.setShape(ry.ST.marker, size=[.3])
+#way3.setRelativePose('t(0 0 .3) d(180 1 0 0)')
+##way3.setRelativeQuaternion(arucoQuaternion.copy())
+#
+#arucoQuaternion[0][0][0] = -arucoQuaternion[0][0][0]
+#arucoQuaternion[0][0][1] = -arucoQuaternion[0][0][1]
+#arucoQuaternion[0][0][2] = -arucoQuaternion[0][0][2]
+#arucoQuaternion[0][0][3] = -arucoQuaternion[0][0][3]
+#
+##arucoQuaternion[0][0][0] = -arucoQuaternion[0][0][1]
+##arucoQuaternion[0][0][1] = -arucoQuaternion[0][0][2]
+##arucoQuaternion[0][0][2] = -arucoQuaternion[0][0][3]
+##arucoQuaternion[0][0][3] = -arucoQuaternion[0][0][0]
+#
+#way4 = C.addFrame('way4', 'camera')
+#way4.setShape(ry.ST.marker, size=[.3])
+#way4.setRelativePose('t(0 0 .5)')
+#way4.setRelativeQuaternion(arucoQuaternion.copy())
+
+print(arucoQuaternion[0][0])
+
+print(arucoQuaternion)
 
 tmp.setRelativeQuaternion(arucoQuaternion)
 C.view()
 
-input("Press Enter to continue...")
+# %%
+# manually define frames as an endeff waypoints, relative to box:
+#way0 = C.addFrame('way0', 'center of red')
+#way1 = C.addFrame('way1', 'center of red')
+#
+#way0.setShape(ry.ST.marker, size=[1.1])
+##way0.setRelativePose('t(0 0 .1) d(90 0 0 1)')
+#way0.setRelativePose('t(0 0 .1)')
+#
+#way1.setShape(ry.ST.marker, size=[1.1])
+##way1.setRelativePose('d(90 0 0 1)')
+#
+#C.view()
+#print("dome")
 
+# %%
+
+
+# %%
 # manually define frames as an endeff waypoints, relative to box:
 way0 = C.addFrame('way0', 'center of red')
 way1 = C.addFrame('way1', 'center of red')
@@ -360,11 +318,11 @@ way2.setShape(ry.ST.marker, size=[.5])
 way2.setRelativePose('t(0 0 .3) d(180 1 0 0)')
 
 way0.setShape(ry.ST.marker, size=[.1])
-way0.setRelativePose('t(0 0 -.2)  d(180 1 0 0)')
+way0.setRelativePose('t(0 0 -.2) d(180 0 0 1) d(180 1 0 0)')
 #way0.setRelativePose('t(0 0 .1)')
 
 way1.setShape(ry.ST.marker, size=[.1])
-way1.setRelativePose(' d(180 1 0 0)')
+way1.setRelativePose('d(180 0 0 1) d(180 1 0 0)')
 
 C.view()
 print("dome")
@@ -385,36 +343,53 @@ ret = ry.NLP_Solver() \
     .solve()
 print(ret)
 
-komo.view(True, "waypoints solution")
+komo.view(False, "waypoints solution")
 
-# komo.view_close()
+komo.view_close()
 path = komo.getPath()
 
 bot = ry.BotOp(C, False)
-
-input("press ENTER to move to home position")
+bot.home(C)
 
 bot.home(C)
-    
 
 bot.gripperOpen(ry._left)
 while not bot.gripperDone(ry._left):
     bot.sync(C, .1)
     
-input("press ENTER to move to gripping pose")
-bot.move(path, [10])
+
+bot.move(path, [2., 3.])
 while bot.getTimeToEnd()>0:
     bot.sync(C, .1)
     
-input("press ENTER to close gripper")
 bot.gripperClose(ry._left)
 while not bot.gripperDone(ry._left):
     bot.sync(C, .1)
     
-input("press ENTER to move to home position")
 bot.home(C)
 
-input("press ENTER to open gripper")
 bot.gripperOpen(ry._left)
 while not bot.gripperDone(ry._left):
     bot.sync(C, .1)
+
+# %%
+C.delFrame('pcl')
+
+# %%
+bot.sync(C)
+
+# %%
+cv2.destroyAllWindows()
+del bot
+del C
+
+# %%
+
+
+# %%
+
+
+# %%
+
+
+

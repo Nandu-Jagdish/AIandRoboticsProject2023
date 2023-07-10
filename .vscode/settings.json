@@ -1,0 +1,9 @@
+{
+    "jupyter.jupyterServerType": "local",
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#2E2F22",
+        "titleBar.activeBackground": "#414130",
+        "titleBar.activeForeground": "#FBFBF9"
+    },
+    "cmake.configureOnOpen": false
+}

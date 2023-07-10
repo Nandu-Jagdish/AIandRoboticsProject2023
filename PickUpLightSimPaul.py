@@ -80,7 +80,7 @@ fig = plt.figure(figsize=(10,5))
 axs = fig.subplots(1, 2)
 axs[0].imshow(rgb)
 axs[1].matshow(depth)
-plt.show()
+# plt.show()
 import time
 time.sleep(0.5)
 
@@ -130,6 +130,15 @@ rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(corners, boxSize,
                                                                            distCoeffs)
 (rvec - tvec).any()  # get rid of that nasty numpy value array error
 import math
+frame = cv2.aruco.drawDetectedMarkers(frame, corners)  # Draw A square around the markers
+frame = cv2.drawFrameAxes(frame, cameraMatrix, distCoeffs, rvec, tvec[0], 0.05)  # Draw Axis
+
+# display frame
+fig = plt.figure(figsize=(10,5))
+axs = fig.subplots(1, 1)
+axs.imshow(frame)
+plt.show()
+
 
 print(rvec)
 
@@ -155,7 +164,6 @@ rvec = new_rvec
 #rvec[0][0][0] = 0
 #rvec[0][0][2] += 0.5 * math.pi
 print(rvec)
-frame = cv2.aruco.drawDetectedMarkers(frame, corners)  # Draw A square around the markers
 
 
 
@@ -163,6 +171,8 @@ frame = cv2.drawFrameAxes(frame, cameraMatrix, distCoeffs, rvec, tvec[0], 0.05) 
 
 # display frame
 fig = plt.figure(figsize=(10,5))
+# add title 
+fig.suptitle('after rotation', fontsize=16)
 axs = fig.subplots(1, 1)
 axs.imshow(frame)
 plt.show()
@@ -186,7 +196,7 @@ b = quaternion.as_float_array([q])
 arucoQuaternion = b[0]
 
 
-
+w,h = 0,0
 C.view()
 #get center of marker
 print(ids)
@@ -202,14 +212,7 @@ if ids is not None:
         h = abs(int(c[2][1] - c[0][1]))
         # print out all elements of c
         print(c)
-# get center from 2 markers
-if ids is not None:
-    if len(ids) == 2:
-        c1 = corners[0][0]
-        c2 = corners[1][0]
-        x = int((c1[0][0] + c1[1][0] + c1[2][0] + c1[3][0] + c2[0][0] + c2[1][0] + c2[2][0] + c2[3][0])/8)
-        y = int((c1[0][1] + c1[1][1] + c1[2][1] + c1[3][1] + c2[0][1] + c2[1][1] + c2[2][1] + c2[3][1])/8)
-        cv2.circle(frame, (x, y), 4, (0, 0, 255), -1)
+
         
 
 # display frame
@@ -247,7 +250,9 @@ point[2] = -Z
 
 tmp = C.addFrame( "center of red", "cameraWrist")
 tmp.setShape(ry.ST.ssBox, size=[(lightWidth*w/ fx),(lightLength*h/ fy),(lightDepth*w/ fx),.005])
-tmp.setColor([1,0,0,.5])
+# set blue color
+tmp.setColor([0,0,1,.5])
+# tmp.setColor([1,0,0,.5])
 
 tmpW = C.addFrame( "center of redW")
 tmpW.setShape(ry.ST.ssBox, size=[(lightWidth*w/ fx),(lightLength*h/ fy),(lightDepth*w/ fx),.005])

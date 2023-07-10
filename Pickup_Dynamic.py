@@ -187,7 +187,9 @@ while True:
 
         _,frame = webCam.read()  
     else:
-        frame = rgb
+        # frame = rgb
+        frame, depth = bot.getImageAndDepth("cameraWrist")
+
     # # convert frame to grayscale
     # gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
     # # detect aruco markers
