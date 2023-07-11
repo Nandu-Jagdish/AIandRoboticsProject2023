@@ -1,35 +1,72 @@
 from robotic import ry
 import numpy as np
 import time
+import math
 from svgpathtools import svg2paths2, real, imag
 
 #joint_limit_offset = [0,0,-0.1,-0.1,0,0,0,0,0,0,0,0,0,0]
 joint_limit_offset = [-0.1]
 
-speed_multiplier = 1.1
-secs_to_hide = 1.0
+speed_multiplier = 0.3
+secs_to_hide = 1.6
 painting_speed = 0.3
 moving_speed = 0.5
 move_add_time = 0.4
-
-secs_to_hide = secs_to_hide/ speed_multiplier
-painting_speed = painting_speed* speed_multiplier
-moving_speed = moving_speed* speed_multiplier
+hiding_angle = 45
 
 
 def getXZ(path, svg_attributes, resultion=50):
     length = path.length(error=1e-4)
     height = int(svg_attributes['height'].replace('px',''))
     width = int(svg_attributes['width'].replace('px',''))
+    #Normalize the length
+    if height > width:
+        longest_side = height
+    else:
+        longest_side = width
+    length = length/longest_side
     x = []
     z = []
 
-    steps = int(length/width*resultion)
-    for i in range(steps+1):
-        x.append(1-real(path.point(i/steps))/height)
-        z.append(1-imag(path.point(i/steps))/width)
-    #weighted length
-    length = length/width
+    
+    
+    
+    t_dec = secs_to_hide/(90/hiding_angle)
+    a = painting_speed/t_dec
+    secs_per_step = (1/resultion)/painting_speed
+    steps_to_turn = math.ceil(t_dec/secs_per_step)
+    s_dec = 0.5*a*t_dec**2
+    
+    if s_dec > length/2: #Path is to short to hide
+        print("Warning: Path to short to point away from the camera")
+        return()
+    
+    steps_constant = int((length - 2*s_dec) * resultion)
+    progress_per_step = (1/resultion)/length
+    
+
+    for i in range(1,steps_to_turn+1):
+        progress = (0.5*a*(i*secs_per_step)**2)/length
+         #progress at time t
+        x.append(1-real(path.point(progress))/longest_side)
+        z.append(1-imag(path.point(progress))/longest_side)
+    
+    for i in range(1,steps_constant+1):
+        progress = s_dec/length + progress_per_step*i
+        x.append(1-real(path.point(progress))/longest_side)
+        z.append(1-imag(path.point(progress))/longest_side)
+    
+    for i in range(1,steps_to_turn+1):
+        progress = 1 - (0.5*a*((steps_to_turn-i)*secs_per_step)**2)/length #progress at time t
+        x.append(1-real(path.point(progress))/longest_side)
+        z.append(1-imag(path.point(progress))/longest_side)
+
+    return x,z,length
+        
+
+
+    
+    
     
     return x,z,length
 
@@ -84,6 +121,8 @@ def waypoints2motion(C,waypoint_paths, lengths ,start_pose):
         times.append(secs_to_move+move_add_time)
         #print(ret)
 
+
+
         C.setJointState(paths[-1][-1])
 
         #Turn light towards camera
@@ -121,8 +160,6 @@ def waypoints2motion(C,waypoint_paths, lengths ,start_pose):
 
         for waypoint, i in zip(waypoint_path, range(1,len(waypoint_path))): # skip first point
             komo.addObjective([i*1/steps_per_phase], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=waypoint);
-scalarproductx
-fs.vectorY,
 
 
         ret = ry.NLP_Solver() \
@@ -131,6 +168,9 @@ fs.vectorY,
             .solve()
         paths.append(komo.getPath())
         times.append(secs_to_paint+move_add_time)
+
+        komo.view(True, "path to draw")
+        komo.view_play(0.1)
     
         #Rotate torchlight away from camera
         end_position = waypoint_path[-1] # set end position
@@ -209,7 +249,7 @@ motions, times = waypoints2motion(C,waypoint_paths, lengths, C.getJointState())
 input("Press Enter to start")
 
 for motion, time in zip(motions, times):
-    bot.move(motion,[time])
+    bot.move(motion,[time*speed_multiplier])
     while bot.getTimeToEnd()>0:
         bot.sync(C, .1)
 
