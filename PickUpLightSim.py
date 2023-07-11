@@ -187,11 +187,11 @@ if ids is not None:
         # top left
         x1 = int((c[0][0] + c[1][0])/2)
         y1 = int((c[0][1] + c[1][1])/2)
-        cv2.circle(frame, (x1, y1), 4, (0, 0, 255), -1)
+        cv2.circle(frame, (x1, y1), 4, (255, 0, 0), -1)
         # top right
         x2 = int((c[1][0] + c[2][0])/2)
         y2 = int((c[1][1] + c[2][1])/2)
-        cv2.circle(frame, (x2, y2), 4, (0, 0, 255), -1)
+        cv2.circle(frame, (x2, y2), 4, (0, 255, 0), -1)
         # bottom right
         x3 = int((c[2][0] + c[3][0])/2)
         y3 = int((c[2][1] + c[3][1])/2)
@@ -199,7 +199,7 @@ if ids is not None:
         # bottom left
         x4 = int((c[3][0] + c[0][0])/2)
         y4 = int((c[3][1] + c[0][1])/2)
-        cv2.circle(frame, (x4, y4), 4, (0, 0, 255), -1)
+        cv2.circle(frame, (x4, y4), 4, (255, 255, 0), -1)
        
 
 
