@@ -6,6 +6,7 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 import quaternion
+from utils.robotUtils import mapTOWorldSpace
 
 C = ry.Config()
 # C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandasTable.g'))
@@ -67,11 +68,11 @@ input("Press Enter to continue...")
 
 rgb, depth = bot.getImageAndDepth(cameraType)
 
-# fig = plt.figure(figsize=(10,5))
-# axs = fig.subplots(1, 2)
-# axs[0].imshow(rgb)
-# axs[1].matshow(depth)
-# plt.show()
+fig = plt.figure(figsize=(10,5))
+axs = fig.subplots(1, 2)
+axs[0].imshow(rgb)
+axs[1].matshow(depth)
+plt.show()
 import time
 time.sleep(0.5)
 
@@ -137,7 +138,7 @@ b = quaternion.as_float_array([q])
 
 arucoQuaternion = b[0]
 
-def mapTOWorldSpace(point,z,fxypxy):
+def mapTOWorldSpace_old(point,z,fxypxy):
     '''
         Maps a point from pixel space to world space
         :param point: The point to be mapped    
@@ -269,37 +270,37 @@ def contourDetection(frame):
     return cx,cy,original
 
 
-redColour = colourDetection(frame,'red')
-cx,cy,redColour = contourDetection(redColour)
-plt.imshow(redColour)
-plt.show()
+# redColour = colourDetection(frame,'red')
+# cx,cy,redColour = contourDetection(redColour)
+# plt.imshow(redColour)
+# plt.show()
 
 
 
 
-worldPoint1 = mapTOWorldSpace((x1,y1),depth[y1,x1],fxypxy)
-worldPoint2 = mapTOWorldSpace((x2,y2),depth[y2,x2],fxypxy)
-worldPoint3 = mapTOWorldSpace((x3,y3),depth[y3,x3],fxypxy)
-worldPoint4 = mapTOWorldSpace((x4,y4),depth[y4,x4],fxypxy)
+worldPoint1 = mapTOWorldSpace((y1,x1),depth[y1,x1],fxypxy)
+worldPoint2 = mapTOWorldSpace((y2,x2),depth[y2,x2],fxypxy)
+worldPoint3 = mapTOWorldSpace((y3,x3),depth[y3,x3],fxypxy)
+worldPoint4 = mapTOWorldSpace((y4,x4),depth[y4,x4],fxypxy)
 
-worldFrame1 = C.addFrame("worldFrame1Point")
-worldFrame1.setPosition(worldPoint1)
-worldFrame1.setShape(ry.ST.sphere, [0.009])
+worldFrame1 = C.addFrame("worldFrame1Point",cameraType)
+worldFrame1.setRelativePosition(worldPoint1)
+worldFrame1.setShape(ry.ST.sphere, [0.019])
 worldFrame1.setColor([1,0,0])
 
-worldFrame2 = C.addFrame("worldFrame2Point")
-worldFrame2.setPosition(worldPoint2)
-worldFrame2.setShape(ry.ST.sphere, [0.009])
+worldFrame2 = C.addFrame("worldFrame2Point",cameraType)
+worldFrame2.setRelativePosition(worldPoint2)
+worldFrame2.setShape(ry.ST.sphere, [0.019])
 worldFrame2.setColor([0,1,0])
 
-worldFrame3 = C.addFrame("worldFrame3Point")
-worldFrame3.setPosition(worldPoint3)
-worldFrame3.setShape(ry.ST.sphere, [0.009])
+worldFrame3 = C.addFrame("worldFrame3Point",cameraType)
+worldFrame3.setRelativePosition(worldPoint3)
+worldFrame3.setShape(ry.ST.sphere, [0.019])
 worldFrame3.setColor([0,0,1])
 
-worldFrame4 = C.addFrame("worldFrame4Point")
-worldFrame4.setPosition(worldPoint4)
-worldFrame4.setShape(ry.ST.sphere, [0.009])
+worldFrame4 = C.addFrame("worldFrame4Point",cameraType)
+worldFrame4.setRelativePosition(worldPoint4)
+worldFrame4.setShape(ry.ST.sphere, [0.019])
 worldFrame4.setColor([1,1,0])
 
  

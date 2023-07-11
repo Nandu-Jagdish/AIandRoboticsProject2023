@@ -49,10 +49,10 @@ plt.show()
 
 worldPoint = mapTOWorldSpace([cy,cx],depth[cy,cx],fxypxy)
 
-worldFrame = C.addFrame('worldFrame',cameraType)
-worldFrame.setPosition(worldPoint)
-worldFrame.setShape(ry.ST.sphere, [.2])
-worldFrame.setColor([0,1,0])
+virtualObject = C.addFrame('virtualObject',cameraType)
+virtualObject.setRelativePosition(worldPoint)
+virtualObject.setShape(ry.ST.sphere, [.2])
+virtualObject.setColor([0,1,0])
 
 C.view()
 input("Press Enter to continue...")
