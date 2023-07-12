@@ -13,8 +13,14 @@ C = ry.Config()
 C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 cameraType = 'cameraWrist'
 
+
+
 cameraFrame = C.getFrame(cameraType)
 # cameraFrame.setPosition([0,-0.18,1.2])
+
+camerMarker = C.addFrame('cameraMarker', cameraType)
+camerMarker.setShape(ry.marker, size=[.5])
+camerMarker.setRelativePosition([0,0,0.0])
 
 boxSize = 0.07
 heightFactor = 0.7
@@ -22,10 +28,20 @@ lengthFactor = 2.5
 
 obj = C.addFrame('obj')
 obj.setPose('t(0. 0.5 0.8)')
-obj.setShape(ry.ST.ssBox, size=[boxSize,boxSize*lengthFactor,boxSize*heightFactor,.005])
+obj.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
 obj.setColor([1,.0,0])
 obj.setMass(.1)
 obj.setContact(True)
+
+boxMarker = C.addFrame('boxMarker', 'obj')
+boxMarker.setShape(ry.marker, size=[.2])
+boxMarker.setRelativePosition([0,0,0.0])
+
+glob = C.addFrame('glob')
+glob.setShape(ry.marker, size=[.5])
+glob.setPose('t(0. 0.0 0.0)')
+
+
 
 # create a 5 by grid of black and white boxes that lie on the surface on the "obj" box and all together are the size of the box surface. The boxes are all quadratic and flat. 
 # The color is given by this 2D array
@@ -165,6 +181,7 @@ if ids is not None:
         x = int((c[0][0] + c[1][0] + c[2][0] + c[3][0])/4)
         y = int((c[0][1] + c[1][1] + c[2][1] + c[3][1])/4)
         cv2.circle(frame, (x, y), 4, (0, 0, 255), -1)
+        centerOfAruco = (y,x)
         #calculate width of the marker in pixel space
         w = int(c[2][0] - c[0][0])
         #calculate height in pixel space
@@ -278,32 +295,116 @@ def contourDetection(frame):
 
 
 
-worldPoint1 = mapTOWorldSpace((y1,x1),depth[y1,x1],fxypxy)
-worldPoint2 = mapTOWorldSpace((y2,x2),depth[y2,x2],fxypxy)
-worldPoint3 = mapTOWorldSpace((y3,x3),depth[y3,x3],fxypxy)
-worldPoint4 = mapTOWorldSpace((y4,x4),depth[y4,x4],fxypxy)
+RedPoint1 = mapTOWorldSpace((y1,x1),depth[y1,x1],fxypxy)
+BluePoint2 = mapTOWorldSpace((y2,x2),depth[y2,x2],fxypxy)
+YellowPoint3 = mapTOWorldSpace((y3,x3),depth[y3,x3],fxypxy)
+GreenPoint4 = mapTOWorldSpace((y4,x4),depth[y4,x4],fxypxy)
+# centerPoint = mapTOWorldSpace((cy,cx),depth[cy,cx],fxypxy
+centerPoint = mapTOWorldSpace(centerOfAruco,depth[centerOfAruco[0],centerOfAruco[1]],fxypxy)
 
-worldFrame1 = C.addFrame("worldFrame1Point",cameraType)
-worldFrame1.setRelativePosition(worldPoint1)
-worldFrame1.setShape(ry.ST.sphere, [0.019])
-worldFrame1.setColor([1,0,0])
+RedFrame = C.addFrame("RedFramePoint",cameraType)
+RedFrame.setRelativePosition(RedPoint1)
+RedFrame.setShape(ry.ST.sphere, [0.029])
+RedFrame.setColor([1,0,0])
 
-worldFrame2 = C.addFrame("worldFrame2Point",cameraType)
-worldFrame2.setRelativePosition(worldPoint2)
-worldFrame2.setShape(ry.ST.sphere, [0.019])
-worldFrame2.setColor([0,1,0])
+BlueFrame = C.addFrame("BlueFramePoint",cameraType)
+BlueFrame.setRelativePosition(BluePoint2)
+BlueFrame.setShape(ry.ST.sphere, [0.029])
+BlueFrame.setColor([0,1,0])
 
-worldFrame3 = C.addFrame("worldFrame3Point",cameraType)
-worldFrame3.setRelativePosition(worldPoint3)
-worldFrame3.setShape(ry.ST.sphere, [0.019])
-worldFrame3.setColor([0,0,1])
+YelloFrame = C.addFrame("YelloFramePoint",cameraType)
+YelloFrame.setRelativePosition(YellowPoint3)
+YelloFrame.setShape(ry.ST.sphere, [0.029])
+YelloFrame.setColor([0,0,1])
 
-worldFrame4 = C.addFrame("worldFrame4Point",cameraType)
-worldFrame4.setRelativePosition(worldPoint4)
-worldFrame4.setShape(ry.ST.sphere, [0.019])
-worldFrame4.setColor([1,1,0])
+GreenFrame = C.addFrame("GreenFramePoint",cameraType)
+GreenFrame.setRelativePosition(GreenPoint4)
+GreenFrame.setShape(ry.ST.sphere, [0.029])
+GreenFrame.setColor([1,1,0])
 
- 
+CenterFrame = C.addFrame("CenterFramePoint",cameraType)
+CenterFrame.setRelativePosition(centerPoint)
+CenterFrame.setShape(ry.ST.sphere, [0.029])
+CenterFrame.setColor([1,0,1])
+
+
+
+
+# find normalised vector of plane
+# find vector between two points
+#convert world points to numpy array
+RedPoint1 = np.array(RedPoint1)
+BluePoint2 = np.array(BluePoint2)
+YellowPoint3 = np.array(YellowPoint3)
+GreenPoint4 = np.array(GreenPoint4)
+
+
+v1 = RedPoint1 - BluePoint2
+v2 = RedPoint1 - YellowPoint3
+
+lengthAxis = RedPoint1 - BluePoint2
+widthAxis = GreenPoint4 - YellowPoint3
+# find cross product
+heightAxis = np.cross(lengthAxis,widthAxis)
+
+# normalise
+heightAxis = heightAxis/np.linalg.norm(heightAxis)
+lengthAxis = lengthAxis/np.linalg.norm(lengthAxis)
+widthAxis = widthAxis/np.linalg.norm(widthAxis)
+# convert to rotation matrix
+# add vectors columnwise to matrix
+rotationMatrix = np.column_stack((widthAxis,lengthAxis,heightAxis))
+
+boardQuarternion = quaternion.from_rotation_matrix(rotationMatrix)
+# find cross product
+normal = np.cross(v1,v2)
+# normalise
+normal = normal/np.linalg.norm(normal)
+# find angle between normal and x axis
+anglex = np.arccos(np.dot(normal,[1,0,0])/(np.linalg.norm(normal)*np.linalg.norm([1,0,0])))
+# convert to degrees
+anglex = np.degrees(anglex)
+# Find angle between normal and z axis
+anglez = np.arccos(np.dot(normal,[0,0,1])/(np.linalg.norm(normal)*np.linalg.norm([0,0,1])))
+# convert to degrees
+anglez = np.degrees(anglez)
+# Find angle between normal and y axis
+angley = np.arccos(np.dot(normal,[0,1,0])/(np.linalg.norm(normal)*np.linalg.norm([0,1,0])))
+# convert to degrees
+angley = np.degrees(angley)
+
+
+#find angle between vector and x axis
+angle = np.arccos(np.dot(v1,[1,0,0])/(np.linalg.norm(v1)*np.linalg.norm([1,0,0])))
+# convert to degrees
+angle = np.degrees(angle)
+
+
+# v2 = worldPoint1 - worldPoint3
+# find cross product
+# normal = np.cross(v1,v2)
+# normalise
+# normal = normal/np.linalg.norm(normal)
+
+# centerPoint = [0.,0.,0.]
+torch = C.addFrame("torch",cameraType)
+torch.setRelativePosition(centerPoint)
+# string = f't({centerPoint[0]} {centerPoint[1]} {centerPoint[2]})d({anglex} 1 0 0)  d({angley} 0 1 0) d({anglez} 0 0 1)'
+# torch.setRelativePose(string)
+# string = f't({centerPoint[0]} {centerPoint[1]} {centerPoint[2]})d({45} 0 1 0)'
+# torch.setRelativePose(string)
+# string = f't({centerPoint[0]} {centerPoint[1]} {centerPoint[2]})d({45} 0 0 0)'
+# torch.setRelativePose(string)
+# set quaternion
+torch.setRelativeQuaternion(quaternion.as_float_array(boardQuarternion))
+torch.setShape(ry.marker, [.6])
+torch.setColor([1,0,1])
+
+
+# # find distance from origin
+# d = np.dot(normal,worldPoint1)
+# # find plane
+# plane = np.append(normal,d)
 
 
 # display frame
