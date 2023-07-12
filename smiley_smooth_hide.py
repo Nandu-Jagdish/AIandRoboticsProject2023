@@ -292,7 +292,7 @@ while bot.getTimeToEnd()>0:
 waypoint_paths, scalar_product_paths, lengths = waypoints_from_svg(FILENAME,C.getFrame('l_gripper').getPosition())
 
 motions, times = waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths, C.getJointState())
-input("Press Enter to start")
+
 
 #for motion, move_time in zip(motions, times):
 #    move_time = move_time/speed_multiplier
@@ -304,13 +304,17 @@ input("Press Enter to start")
 #bot.move(motions,times)
 mall = [] 
 tall = []
+total_time = 0
 for i,motion in enumerate(motions):
-	time_i = float(times[i]/len(motions))
-	for m in motion:
-		mall.append(m)
-		tall.append(time_i)
+    time_i = float(times[i]/len(motion))
+    for m in motion:
+        mall.append(m)
+        total_time += time_i
+        tall.append(total_time)
 
-
+print(f"Image will take {tall[-1]} s")         
+input("Press Enter to start") 
+                
 bot.move(mall,tall)
     
 
