@@ -7,19 +7,19 @@ from svgpathtools import svg2paths2, real, imag
 #joint_limit_offset = [0,0,-0.1,-0.1,0,0,0,0,0,0,0,0,0,0]
 joint_limit_offset = [-0.1]
 
-speed_multiplier = 0.5
-secs_to_hide = 1.6
+speed_multiplier = 1.0
+secs_to_hide = 1.4
 painting_speed = 0.3
 moving_speed = 0.3
 move_add_time = 0.0
-hiding_angle = 30
+hiding_angle = 45
 RESULTION = 40
-PICTURE_SIZE = 0.6 #MAX 0.6 with full size circle
+PICTURE_SIZE = 0.8 #MAX 0.6 with full size circle
 Z_OFFSET_CENTER = -0.1
 
 KOMO_VIEW = False
 REAL_ROBOT = False
-FILENAME = 'smiley_bigger.svg'
+FILENAME = 'smiley.svg'
 
 DOUBLE_LINE = False
 
@@ -294,13 +294,36 @@ waypoint_paths, scalar_product_paths, lengths = waypoints_from_svg(FILENAME,C.ge
 motions, times = waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths, C.getJointState())
 input("Press Enter to start")
 
-for motion, move_time in zip(motions, times):
-    move_time = move_time/speed_multiplier
-    bot.move(motion,[move_time])
+#for motion, move_time in zip(motions, times):
+#    move_time = move_time/speed_multiplier
+#    bot.move(motion,[move_time])
+#    
+
+
+
+#bot.move(motions,times)
+mall = [] 
+tall = []
+for i,motion in enumerate(motions):
+	time_i = float(times[i]/len(motions))
+	for m in motion:
+		mall.append(m)
+		tall.append(time_i)
+
+
+bot.move(mall,tall)
+    
+
+
+    
+
+    
+print("move command sends")
     
 
 while bot.getTimeToEnd()>0:
         bot.sync(C, .1)
+        
 
 input("Press Enter to home")
 #Move back to home
