@@ -8,22 +8,24 @@ from svgpathtools import svg2paths2, real, imag
 joint_limit_offset = [-0.1]
 
 speed_multiplier = 1.0
-secs_to_hide = 1.4
-painting_speed = 0.3
-moving_speed = 0.3
+secs_to_hide = 0.9
+painting_speed = 0.4
+moving_speed = 0.5
 move_add_time = 0.0
 hiding_angle = 45
 RESULTION = 40
-PICTURE_SIZE = 0.8 #MAX 0.6 with full size circle
+PICTURE_SIZE = 0.6 #MAX 0.6 with full size circle
 Z_OFFSET_CENTER = -0.1
 
 KOMO_VIEW = False
-REAL_ROBOT = False
+REAL_ROBOT = True
 FILENAME = 'smiley.svg'
 
 DOUBLE_LINE = False
 
-def getXZ(path, svg_attributes, resultion=RESULTION):
+resultion = RESULTION
+
+def getXZ(path, svg_attributes):
     length = path.length(error=1e-4)
     height = int(svg_attributes['height'].replace('px',''))
     width = int(svg_attributes['width'].replace('px',''))
@@ -37,15 +39,18 @@ def getXZ(path, svg_attributes, resultion=RESULTION):
     z = []
     scalar_product = []
     resize_factor = 1/longest_side*PICTURE_SIZE
-    resultion= resultion*PICTURE_SIZE
+    resultion=RESULTION*PICTURE_SIZE
 
     
     
     
     t_dec = hiding_angle/90*secs_to_hide
-    a = painting_speed/t_dec
     secs_per_step = (1/resultion)/painting_speed
     steps_to_turn = math.ceil(t_dec/secs_per_step)
+    t_dec = secs_per_step*steps_to_turn #Adapt to fixed timesteps
+
+    a = painting_speed/t_dec
+    
     s_dec = 0.5*a*t_dec**2
     
     if s_dec > length/2: #Path is to short to hide
@@ -150,16 +155,18 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths ,start_pose
             komo.view(True, "Move to start")
             #komo.view_play(0.6)
 
+        
 
+        #Turn light towards camera
+        secs_to_hide*(90-hiding_angle)/90
 
         C.setJointState(paths[-1][-1])
 
-        #Turn light towards camera
         komo = ry.KOMO()
         komo.setConfig(C, True)
         komo.setTiming(1., 1, secs_to_hide, 2)
         komo.addControlObjective([], 0, 1e-0)
-        komo.addControlObjective([], 2, 1e-0)
+        komo.addControlObjective([], 2, 1e+1)
         komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
         komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
         komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e+0],[math.cos(hiding_angle*math.pi/180)])
@@ -170,7 +177,7 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths ,start_pose
             .setOptions( stopTolerance=1e-2, verbose=4 ) \
             .solve()
         paths.append(komo.getPath())
-        times.append(secs_to_hide*(90-hiding_angle)/90+move_add_time)
+        times.append(secs_to_hide+move_add_time)
 
         if KOMO_VIEW:
             komo.view(True, "Turn towards camera")
@@ -181,7 +188,12 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths ,start_pose
         #Move from start to finish with interpolation
         #Calculate time to paint with accerlation
         t_dec = hiding_angle/90*secs_to_hide
+        secs_per_step = (1/resultion)/painting_speed
+        steps_to_turn = math.ceil(t_dec/secs_per_step)
+        t_dec = secs_per_step*steps_to_turn #Adapt to fixed timesteps
+
         a = painting_speed/t_dec
+	    
         s_dec = 0.5*a*t_dec**2
         steps_per_phase = len(waypoint_path)
         secs_to_paint = (length-2*s_dec)/painting_speed+t_dec*2
@@ -226,7 +238,7 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths ,start_pose
         komo.setConfig(C, True)
         komo.setTiming(1., 1, secs_to_hide, 2)
         komo.addControlObjective([], 0, 1e0)
-        komo.addControlObjective([], 2, 1e+0)
+        komo.addControlObjective([], 2, 1e+1)
         komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
         komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
         komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
@@ -306,7 +318,7 @@ mall = []
 tall = []
 total_time = 0
 for i,motion in enumerate(motions):
-    time_i = float(times[i]/len(motion))
+    time_i = float(times[i]/len(motion))/speed_multiplier
     for m in motion:
         mall.append(m)
         total_time += time_i
