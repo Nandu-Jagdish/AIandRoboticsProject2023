@@ -93,8 +93,8 @@ def getSvgPathParams(path, svg_attributes):
 
 def getXZ(path, svg_attributes, connected_to_previous, connected_to_next):
     length, resize_factor, resultion = getSvgPathParams(path, svg_attributes)
-    connected_to_previous = False
-    connected_to_next = False
+    connected_to_previous = False # this is set to False to keept getXZ as is and not change depending on connectivity
+    connected_to_next = False # in future ths this could be deleted to make the continous drawing even faster
     x = []
     z = []
     scalar_product = []
