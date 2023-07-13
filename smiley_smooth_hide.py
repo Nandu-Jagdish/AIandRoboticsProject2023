@@ -22,6 +22,8 @@ Z_OFFSET_CENTER = -0.1
 CLOSE_DISTANCE = 0.08 # distance in meter where tunring light away is deemed unnecessary
 
 OPTIMIZE_TRAJECTORY_ORDER = False
+CONTINUOUS_DRAWING = False
+FOCUS_ON_CAM = False
 KOMO_VIEW = False
 REAL_ROBOT = False
 FILENAME = 'cube.svg'
@@ -237,7 +239,7 @@ def waypoints_from_svg(filepath, center_position):
     # OPTIMIZE TRAJECTORY ORDER if enabled
     if(OPTIMIZE_TRAJECTORY_ORDER):
         svg_paths, next_trajectory_really_close = greedyTrajectoryOptimizer(svg_paths, svg_attributes)
-    else: # if not enabled, just set all connectivity to false
+    if (not CONTINUOUS_DRAWING or not OPTIMIZE_TRAJECTORY_ORDER): # if not enabled, just set all connectivity to false
         for i in range(len(svg_paths)+1):
             next_trajectory_really_close.append(False)
     
@@ -354,17 +356,26 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
         steps_per_phase = len(waypoint_path)
 
         # TODO: adjust secs_to_paint to account for connectivity
-        secs_to_paint = length - 2 * s_dec
-        if connected_to_previous: 
-            secs_to_paint += s_dec
-        if connected_to_next:
-            secs_to_paint += s_dec
-        secs_to_paint = secs_to_paint / painting_speed + t_dec*2
+        #secs_to_paint = length - 2 * s_dec
+        #if connected_to_previous: 
+        #    secs_to_paint += s_dec
+        #if connected_to_next:
+        #    secs_to_paint += s_dec
+        #secs_to_paint = secs_to_paint / painting_speed + t_dec*2
         #if connected_to_previous: 
         #    secs_to_paint -= t_dec
         #if connected_to_next:
         #    secs_to_paint -= t_dec
         secs_to_paint = (length-2*s_dec)/painting_speed+t_dec*2
+
+
+
+        # create array of pointing frames
+        camera_pointing_frames = []
+        for i in range(0,len(waypoint_path)):
+            camera_pointing_frames.append(getRotatedVectorFrameFromPoint(waypoint_path[i]))
+
+
         komo = ry.KOMO()
         C.setJointState(paths[-1][-1])
         
@@ -381,10 +392,13 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
         starting_point = 1
         if connected_to_previous:
             starting_point = 0
+        
         for i in range(starting_point,len(waypoint_path)): # skip first point
-            C.addFrame('waypoint_'+str(i)).setPosition(waypoint_path[i]).setShape(ry.ST.marker, size=[.1])
             komo.addObjective([i*1/steps_per_phase], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=waypoint_path[i]);
-            komo.addObjective([i*1/steps_per_phase], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[scalar_product_path[i]])
+            if (FOCUS_ON_CAM):
+                komo.addObjective([i*1/steps_per_phase], ry.FS.scalarProductYY, ['l_gripper',camera_pointing_frames[i]], ry.OT.eq, [1e1],[scalar_product_path[i]])
+            else:
+                komo.addObjective([i*1/steps_per_phase], ry.FS.scalarProductYY, ['l_gripper',camera_pointing_frames[i]], ry.OT.eq, [1e1],[scalar_product_path[i]])
         C.view(False, "waypoints")
 
         ret = ry.NLP_Solver() \
@@ -431,6 +445,13 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
 C = ry.Config()
 C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 C.view(False)
+
+# define external camera frame
+# y has to be at least 1.0 to not cause undesired swirling around the external camera
+cam = C.addFrame( "externalCamera")
+cam.setShape(ry.ST.ssBox, size=[.1,.1,.1,.005])
+cam.setColor([1,0,0,1])
+cam.setPose("t(0 1.0 1.2)")
 
 input("Press Enter to home")
 bot = ry.BotOp(C, REAL_ROBOT)
