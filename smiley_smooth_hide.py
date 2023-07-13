@@ -3,6 +3,9 @@ import numpy as np
 import time
 import math
 from svgpathtools import svg2paths2, real, imag
+import warnings
+
+
 
 #joint_limit_offset = [0,0,-0.1,-0.1,0,0,0,0,0,0,0,0,0,0]
 joint_limit_offset = [-0.1]
@@ -14,35 +17,85 @@ moving_speed = 0.5
 move_add_time = 0.0
 hiding_angle = 45
 RESULTION = 40
-PICTURE_SIZE = 0.6 #MAX 0.6 with full size circle
+PICTURE_SIZE = 1.1 #MAX 0.6 with full size circle
 Z_OFFSET_CENTER = -0.1
+CLOSE_DISTANCE = 0.08 # distance in meter where tunring light away is deemed unnecessary
 
+OPTIMIZE_TRAJECTORY_ORDER = False
 KOMO_VIEW = False
-REAL_ROBOT = True
-FILENAME = 'smiley.svg'
+REAL_ROBOT = False
+FILENAME = 'cube.svg'
 
 DOUBLE_LINE = False
 
 resultion = RESULTION
 
-def getXZ(path, svg_attributes):
+
+# translated from c++ function "Quaternion:setDiff" in file "Quaternion.cpp"
+def getQuat(from_vector, to_vector):
+    offsetNorm = initial_position #/ np.linalg.norm(to_vector)
+    offset = np.array([0,offsetNorm[1],0]) * np.linalg.norm(to_vector)
+    #offset = np.array([0,0.6,0])
+    a = from_vector / np.linalg.norm(from_vector)
+    b = (to_vector - offset) / np.linalg.norm(to_vector)
+    scalarProduct = np.dot(a, b)
+    phi = np.arccos(scalarProduct)
+    if phi == 0:
+        return np.array([0, 0, 0, 0])
+    axis = np.cross(a, b)
+    if np.linalg.norm(axis) < 1e-10:
+        axis = np.cross(np.array([1, 0, 0]), b)
+        if np.linalg.norm(axis) < 1e-10:
+            axis = np.cross(np.array([0, 1, 0]), b)
+    return np.array([np.cos(phi / 2), axis[0] * np.sin(phi / 2), axis[1] * np.sin(phi / 2), axis[2] * np.sin(phi / 2)])
+
+
+def getRotatedVectorFrameFromPoint(point):
+    externalCamera = C.getFrame('externalCamera')
+    diffVector = externalCamera.getPosition() - point # order matters here!
+    ext = externalCamera.getPosition()
+
+    quat = getQuat(np.array([0, 1, 0]), diffVector)
+    
+    # create unique frame for point
+    frameName = 'rotatedVectorFrame' + str(time.time())
+    rotatedVectorFrame = C.addFrame(frameName)
+    rotatedVectorFrame.setShape(ry.ST.marker, size=[.1]) # this can be commented out to hide the marker
+    rotatedVectorFrame.setPosition(point)
+    rotatedVectorFrame.setQuaternion(quat)
+    return frameName
+
+def getSvgPathParams(path, svg_attributes):
     length = path.length(error=1e-4)
     height = int(svg_attributes['height'].replace('px',''))
     width = int(svg_attributes['width'].replace('px',''))
+
+    # rescale canvas size depending on highest viewbox parameter
+    viewBox = svg_attributes['viewBox'].split(' ')
+    viewBox = [float(i) for i in viewBox]
+    max_viewbox = max(viewBox)
+
+    height = int(height * (max_viewbox/height))
+    width = int(width * (max_viewbox/width))
+
     #Normalize the length
     if height > width:
         longest_side = height
     else:
         longest_side = width
-    length = length/longest_side*PICTURE_SIZE
+    length = (length/longest_side)*PICTURE_SIZE
+    resize_factor = (1/longest_side)*PICTURE_SIZE
+    resultion=RESULTION*PICTURE_SIZE
+
+    return length, resize_factor, resultion
+
+def getXZ(path, svg_attributes, connected_to_previous, connected_to_next):
+    length, resize_factor, resultion = getSvgPathParams(path, svg_attributes)
+    connected_to_previous = False
+    connected_to_next = False
     x = []
     z = []
     scalar_product = []
-    resize_factor = 1/longest_side*PICTURE_SIZE
-    resultion=RESULTION*PICTURE_SIZE
-
-    
-    
     
     t_dec = hiding_angle/90*secs_to_hide
     secs_per_step = (1/resultion)/painting_speed
@@ -54,48 +107,121 @@ def getXZ(path, svg_attributes):
     s_dec = 0.5*a*t_dec**2
     
     if s_dec > length/2: #Path is to short to hide
-        print("Warning: Path to short to point away from the camera")
-        return()
-    
-    steps_constant = int((length - 2*s_dec) * resultion)
-    progress_per_step = (1/resultion)/length
+        warnings.warn("Warning: Path to short to point away from the camera")
+        return([],[],[],0)
     
 
-    for i in range(0,steps_to_turn+1):
-        progress = (0.5*a*(i*secs_per_step)**2)/length
-         #progress at time t
-        if DOUBLE_LINE:
-            progress /=2
-        x.append(real(path.point(progress))*resize_factor)
-        z.append(imag(path.point(progress))*resize_factor)
-        #angle in radians
-        angle = (hiding_angle-i/steps_to_turn*hiding_angle)*math.pi/180
-        scalar_product.append(math.cos(angle))
+    # Calculate the number of steps for the constant speed part depending on connectivity
+    steps_constant = length - 2 * s_dec
+    start_constant = 1
+    offset_constant = s_dec/length
+    if connected_to_previous: 
+        steps_constant += s_dec
+        start_constant = 0
+        offset_constant = 0
+    if connected_to_next:
+        steps_constant += s_dec
+    steps_constant = int(steps_constant * resultion)
+
+    progress_per_step = (1/resultion)/length
     
-    for i in range(1,steps_constant+1):
+    if not connected_to_next:
+        for i in range(0,steps_to_turn+1):
+            progress = (0.5*a*(i*secs_per_step)**2)/length
+             #progress at time t
+            if DOUBLE_LINE:
+                progress /=2
+            x.append(real(path.point(progress))*resize_factor)
+            z.append(imag(path.point(progress))*resize_factor)
+            #angle in radians
+            angle = (hiding_angle-i/steps_to_turn*hiding_angle)*math.pi/180
+            scalar_product.append(math.cos(angle))
+    
+    for i in range(start_constant,steps_constant+1):
         
-        progress = s_dec/length + progress_per_step*i
+        progress = offset_constant + progress_per_step*i
         if DOUBLE_LINE:
             progress /=2
         x.append(real(path.point(progress))*resize_factor)
         z.append(imag(path.point(progress))*resize_factor)
         scalar_product.append(1)
     
-    for i in range(1,steps_to_turn+1):
+    if not connected_to_previous:
+        for i in range(1,steps_to_turn+1):
 
-        progress = 1 - (0.5*a*((steps_to_turn-i)*secs_per_step)**2)/length #progress at time t
-        if DOUBLE_LINE:
-            progress /=2
-        x.append(real(path.point(progress))*resize_factor)
-        z.append(imag(path.point(progress))*resize_factor)
-        #angle in radians
-        angle = (i/steps_to_turn*hiding_angle)*math.pi/180
-        scalar_product.append( math.cos(angle))
+            progress = 1 - (0.5*a*((steps_to_turn-i)*secs_per_step)**2)/length #progress at time t
+            if DOUBLE_LINE:
+                progress /=2
+            x.append(real(path.point(progress))*resize_factor)
+            z.append(imag(path.point(progress))*resize_factor)
+            #angle in radians
+            angle = (i/steps_to_turn*hiding_angle)*math.pi/180
+            scalar_product.append( math.cos(angle))
 
     return x,z,scalar_product, length
         
 
+def greedyTrajectoryOptimizer(svg_paths, svg_attributes):
+    svg_paths_ord = []
 
+    last_trajectory_end_point = [10,10,10]
+    number_of_trajectories = len(svg_paths)
+    # GREEDY ALGORITHM TO FIND CLOSEST NEXT TRAJECTORY
+    for i in range(number_of_trajectories):
+        first_or_second = 0
+        trajectory = 0
+        closesDistance = 999
+        predicted_last_trajectory_end_point = np.array([])
+        for j in range(len(svg_paths)):
+            # check if first point of trajectory is close to last point of current trajectory
+            startPoint = np.array([real(svg_paths[j].start), 0, imag(svg_paths[j].start)])
+            endPoint = np.array([real(svg_paths[j].end), 0, imag(svg_paths[j].end)])
+
+            distanceFirst = np.linalg.norm(startPoint - last_trajectory_end_point)
+            if distanceFirst < closesDistance:
+                closesDistance = distanceFirst
+                trajectory = j
+                first_or_second = 0
+                predicted_last_trajectory_end_point = endPoint
+            # check if second point of trajectory is close to last point of current trajectory
+            distanceSecond = np.linalg.norm(endPoint - last_trajectory_end_point)
+            if distanceSecond < closesDistance:
+                closesDistance = distanceSecond
+                trajectory = j
+                first_or_second = 1
+                predicted_last_trajectory_end_point = startPoint
+
+        last_trajectory_end_point = predicted_last_trajectory_end_point
+        if first_or_second == 0:
+            svg_paths_ord.append(svg_paths[trajectory])
+        else:
+            svg_paths_ord.append(svg_paths[trajectory].reversed())
+            
+
+        # remove trajectory from list of possible trajectories
+        svg_paths.pop(trajectory)
+
+        # create an array that contains whether the following trajectory is so close that the light should not be turned away
+        next_trajectory_really_close = [False] # when starting always have to turn towards
+        for j in range(len(svg_paths_ord)-1):
+            endPoint = np.array([real(svg_paths_ord[j].end), 0, imag(svg_paths_ord[j].end)])
+            startPoint = np.array([real(svg_paths_ord[j+1].start), 0, imag(svg_paths_ord[j+1].start)])
+
+            # convert points to world scaling
+            _, resize_factor, _ = getSvgPathParams(svg_paths_ord[j], svg_attributes)
+
+            endPoint = endPoint * resize_factor
+            startPoint = startPoint * resize_factor
+
+            distance = np.linalg.norm(startPoint - endPoint)
+            if distance < CLOSE_DISTANCE:
+                next_trajectory_really_close.append(True)
+            else:
+                next_trajectory_really_close.append(False)
+            
+        next_trajectory_really_close.append(False) #  when finishing always has to turn away
+
+    return svg_paths_ord, next_trajectory_really_close
 
 
 def waypoints_from_svg(filepath, center_position):
@@ -103,23 +229,46 @@ def waypoints_from_svg(filepath, center_position):
     waypoint_paths = []
     scalar_product_paths = []
     lengths = []
+    temp = []
     for svg_path in svg_paths:
+        temp.append(svg_path.reversed())
+    svg_paths = temp
+    next_trajectory_really_close = []
+    # OPTIMIZE TRAJECTORY ORDER if enabled
+    if(OPTIMIZE_TRAJECTORY_ORDER):
+        svg_paths, next_trajectory_really_close = greedyTrajectoryOptimizer(svg_paths, svg_attributes)
+    else: # if not enabled, just set all connectivity to false
+        for i in range(len(svg_paths)+1):
+            next_trajectory_really_close.append(False)
+    
+    for i in range(0, len(svg_paths)):
+        svg_path = svg_paths[i]
+        connected_to_previous = next_trajectory_really_close[i]
+        connected_to_next = next_trajectory_really_close[i+1]
         waypoints = []
-        x_vec,z_vec, scalar_product_vec, length = getXZ(svg_path, svg_attributes)
-        for i in range(len(x_vec)):
-            waypoints.append(center_position- [x_vec[i],0,z_vec[i]] +[PICTURE_SIZE/2,0,PICTURE_SIZE/2] + [0,0,Z_OFFSET_CENTER] )
-        waypoint_paths.append(waypoints)
-        lengths.append(length)
-        scalar_product_paths.append(scalar_product_vec)
-    return waypoint_paths, scalar_product_paths, lengths
+        print("Path: ", svg_path)
+        x_vec,z_vec, scalar_product_vec, length = getXZ(svg_path, svg_attributes, connected_to_previous, connected_to_next)
+        if len(x_vec) > 0: # check if path actually has points
+            for i in range(len(x_vec)):
+                waypoints.append(center_position- [x_vec[i],0,z_vec[i]] +[PICTURE_SIZE/2,0,PICTURE_SIZE/2] + [0,0,Z_OFFSET_CENTER] )
+            waypoint_paths.append(waypoints)
+            lengths.append(length)
+            scalar_product_paths.append(scalar_product_vec)
+    return waypoint_paths, scalar_product_paths, lengths, next_trajectory_really_close
 
 
 #Get motions from svg
-def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths ,start_pose):
+def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_trajectory_really_close, start_pose):
     paths = []
     times = []
 
-    for waypoint_path, scalar_product_path, length in zip(waypoint_paths, scalar_product_paths, lengths):
+    for i in range(len(waypoint_paths)):
+        waypoint_path = waypoint_paths[i]
+        scalar_product_path = scalar_product_paths[i]
+        length = lengths[i]
+        connected_to_previous = next_trajectory_really_close[i]
+        connected_to_next = next_trajectory_really_close[i+1]
+
         #Move to start position
         if paths == []:
             C.setJointState(start_pose)
@@ -137,10 +286,16 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths ,start_pose
         komo.setConfig(C, True)
         komo.setTiming(1., 1, secs_to_move, 2)
         komo.addControlObjective([], 0, 1e-0)
-        komo.addControlObjective([], 2, 1e-0)
+        
         komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
         komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
-        komo.addObjective([], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
+        if connected_to_next:
+            komo.addObjective([], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e+0],[math.cos(hiding_angle*math.pi/180)])
+            komo.addControlObjective([], 2, 1e+1)
+            secs_to_move += (CLOSE_DISTANCE / moving_speed) * 2.0
+        else:
+            komo.addObjective([], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
+            komo.addControlObjective([], 2, 1e-0)
         komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=start_position);
 
         ret = ry.NLP_Solver() \
@@ -157,31 +312,32 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths ,start_pose
 
         
 
-        #Turn light towards camera
-        secs_to_hide*(90-hiding_angle)/90
+        if not connected_to_previous:
+            #Turn light towards camera
+            secs_to_hide*(90-hiding_angle)/90
 
-        C.setJointState(paths[-1][-1])
+            C.setJointState(paths[-1][-1])
 
-        komo = ry.KOMO()
-        komo.setConfig(C, True)
-        komo.setTiming(1., 1, secs_to_hide, 2)
-        komo.addControlObjective([], 0, 1e-0)
-        komo.addControlObjective([], 2, 1e+1)
-        komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-        komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
-        komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e+0],[math.cos(hiding_angle*math.pi/180)])
-        komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=start_position);
+            komo = ry.KOMO()
+            komo.setConfig(C, True)
+            komo.setTiming(1., 1, secs_to_hide, 2)
+            komo.addControlObjective([], 0, 1e-0)
+            komo.addControlObjective([], 2, 1e+1)
+            komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
+            komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
+            komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e+0],[math.cos(hiding_angle*math.pi/180)])
+            komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=start_position);
 
-        ret = ry.NLP_Solver() \
-            .setProblem(komo.nlp()) \
-            .setOptions( stopTolerance=1e-2, verbose=4 ) \
-            .solve()
-        paths.append(komo.getPath())
-        times.append(secs_to_hide+move_add_time)
+            ret = ry.NLP_Solver() \
+                .setProblem(komo.nlp()) \
+                .setOptions( stopTolerance=1e-2, verbose=4 ) \
+                .solve()
+            paths.append(komo.getPath())
+            times.append(secs_to_hide+move_add_time)
 
-        if KOMO_VIEW:
-            komo.view(True, "Turn towards camera")
-            komo.view_play(0.6)
+            if KOMO_VIEW:
+                komo.view(True, "Turn towards camera")
+                komo.view_play(0.6)
 
         #Move to draw path
 
@@ -196,6 +352,18 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths ,start_pose
 	    
         s_dec = 0.5*a*t_dec**2
         steps_per_phase = len(waypoint_path)
+
+        # TODO: adjust secs_to_paint to account for connectivity
+        secs_to_paint = length - 2 * s_dec
+        if connected_to_previous: 
+            secs_to_paint += s_dec
+        if connected_to_next:
+            secs_to_paint += s_dec
+        secs_to_paint = secs_to_paint / painting_speed + t_dec*2
+        #if connected_to_previous: 
+        #    secs_to_paint -= t_dec
+        #if connected_to_next:
+        #    secs_to_paint -= t_dec
         secs_to_paint = (length-2*s_dec)/painting_speed+t_dec*2
         komo = ry.KOMO()
         C.setJointState(paths[-1][-1])
@@ -209,8 +377,11 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths ,start_pose
 
         gripper_position = C.getFrame('l_gripper').getRotationMatrix()
         
-
-        for i in range(1,len(waypoint_path)): # skip first point
+        # adjust starting pos according to connectivity
+        starting_point = 1
+        if connected_to_previous:
+            starting_point = 0
+        for i in range(starting_point,len(waypoint_path)): # skip first point
             C.addFrame('waypoint_'+str(i)).setPosition(waypoint_path[i]).setShape(ry.ST.marker, size=[.1])
             komo.addObjective([i*1/steps_per_phase], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=waypoint_path[i]);
             komo.addObjective([i*1/steps_per_phase], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[scalar_product_path[i]])
@@ -230,26 +401,27 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths ,start_pose
             komo.view(True, "path to draw")
             komo.view_play(0.6)
     
-        #Rotate torchlight away from camera
-        end_position = waypoint_path[-1] # set end position
+        if not connected_to_next:
+            #Rotate torchlight away from camera
+            end_position = waypoint_path[-1] # set end position
 
-        C.setJointState(paths[-1][-1])
-        komo = ry.KOMO()
-        komo.setConfig(C, True)
-        komo.setTiming(1., 1, secs_to_hide, 2)
-        komo.addControlObjective([], 0, 1e0)
-        komo.addControlObjective([], 2, 1e+1)
-        komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-        komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
-        komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
-        komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1e1],target=end_position);
+            C.setJointState(paths[-1][-1])
+            komo = ry.KOMO()
+            komo.setConfig(C, True)
+            komo.setTiming(1., 1, secs_to_hide, 2)
+            komo.addControlObjective([], 0, 1e0)
+            komo.addControlObjective([], 2, 1e+1)
+            komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
+            komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
+            komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
+            komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1e1],target=end_position);
 
-        ret = ry.NLP_Solver() \
-            .setProblem(komo.nlp()) \
-            .setOptions( stopTolerance=1e-2, verbose=4 ) \
-            .solve()
-        paths.append( komo.getPath())
-        times.append(secs_to_hide+move_add_time)
+            ret = ry.NLP_Solver() \
+                .setProblem(komo.nlp()) \
+                .setOptions( stopTolerance=1e-2, verbose=4 ) \
+                .solve()
+            paths.append( komo.getPath())
+            times.append(secs_to_hide+move_add_time)
 
     return paths, times
 
@@ -301,9 +473,10 @@ while bot.getTimeToEnd()>0:
 
 
 #Calculate path
-waypoint_paths, scalar_product_paths, lengths = waypoints_from_svg(FILENAME,C.getFrame('l_gripper').getPosition())
+initial_position = C.getFrame('l_gripper').getPosition()
+waypoint_paths, scalar_product_paths, lengths, next_trajectory_really_close = waypoints_from_svg(FILENAME,C.getFrame('l_gripper').getPosition())
 
-motions, times = waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths, C.getJointState())
+motions, times = waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths, next_trajectory_really_close, C.getJointState())
 
 
 #for motion, move_time in zip(motions, times):
