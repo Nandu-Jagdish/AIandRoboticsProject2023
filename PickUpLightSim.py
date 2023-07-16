@@ -12,11 +12,14 @@ C = ry.Config()
 # C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandasTable.g'))
 C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 cameraType = 'cameraWrist'
+# cameraType = 'camera'
 
 
 
 cameraFrame = C.getFrame(cameraType)
 # cameraFrame.setPosition([0,-0.18,1.2])
+# cameraFrame.setPose('t(.2 0.3 1.8) d(45 0 1 0)')
+
 
 camerMarker = C.addFrame('cameraMarker', cameraType)
 camerMarker.setShape(ry.marker, size=[.5])
@@ -84,26 +87,29 @@ input("Press Enter to continue...")
 
 rgb, depth = bot.getImageAndDepth(cameraType)
 
-fig = plt.figure(figsize=(10,5))
-axs = fig.subplots(1, 2)
-axs[0].imshow(rgb)
-axs[1].matshow(depth)
-plt.show()
-import time
-time.sleep(0.5)
+
 
 input("Press Enter to continue...")
+rgb, depth = bot.getImageAndDepth(cameraType)
 
 fxypxy = bot.getCameraFxypxy(cameraType)
 print(fxypxy)
 depth.shape
 cameraFrame = C.getFrame(cameraType)
 
+# fig = plt.figure(figsize=(10,5))
+# axs = fig.subplots(1, 2)
+# axs[0].imshow(rgb)
+# axs[1].matshow(depth)
+# plt.show()
+import time
+time.sleep(0.5)
+
 #include opencv
 import cv2
 
 # open webcam
-cap = rgb
+# cap = rgb
 x = 0
 y = 0
 
@@ -224,8 +230,8 @@ if ids is not None:
 
 
 # display frame using matplotlib
-plt.imshow(frame)
-plt.show()
+# plt.imshow(frame)
+# plt.show()
 
        
 def colourDetection(frame,colour):
@@ -304,28 +310,37 @@ centerPoint = mapTOWorldSpace(centerOfAruco,depth[centerOfAruco[0],centerOfAruco
 
 RedFrame = C.addFrame("RedFramePoint",cameraType)
 RedFrame.setRelativePosition(RedPoint1)
-RedFrame.setShape(ry.ST.sphere, [0.029])
+print('\nRedPoint1: ',RedPoint1)
+RedFrame.setShape(ry.ST.sphere, [0.019])
 RedFrame.setColor([1,0,0])
 
 BlueFrame = C.addFrame("BlueFramePoint",cameraType)
 BlueFrame.setRelativePosition(BluePoint2)
-BlueFrame.setShape(ry.ST.sphere, [0.029])
+BlueFrame.setShape(ry.ST.sphere, [0.019])
 BlueFrame.setColor([0,1,0])
+print('\nBluePoint2: ',BluePoint2)
 
 YelloFrame = C.addFrame("YelloFramePoint",cameraType)
 YelloFrame.setRelativePosition(YellowPoint3)
-YelloFrame.setShape(ry.ST.sphere, [0.029])
+YelloFrame.setShape(ry.ST.sphere, [0.019])
 YelloFrame.setColor([0,0,1])
+print('\nYellowPoint3: ',YellowPoint3)
 
 GreenFrame = C.addFrame("GreenFramePoint",cameraType)
 GreenFrame.setRelativePosition(GreenPoint4)
-GreenFrame.setShape(ry.ST.sphere, [0.029])
+GreenFrame.setShape(ry.ST.sphere, [0.019])
 GreenFrame.setColor([1,1,0])
+print('\nGreenPoint4: ',GreenPoint4)
 
 CenterFrame = C.addFrame("CenterFramePoint",cameraType)
 CenterFrame.setRelativePosition(centerPoint)
-CenterFrame.setShape(ry.ST.sphere, [0.029])
+CenterFrame.setShape(ry.ST.sphere, [0.019])
 CenterFrame.setColor([1,0,1])
+print('\nCenterPoint: ',centerPoint)
+obj.setColor([1,0,1,0.3])
+input("Press Enter to view the 4 points...")
+C.view()
+
 
 
 
@@ -389,7 +404,6 @@ angle = np.degrees(angle)
 # centerPoint = [0.,0.,0.]
 torch = C.addFrame("torch",cameraType)
 torch.setRelativePosition(centerPoint)
-# string = f't({centerPoint[0]} {centerPoint[1]} {centerPoint[2]})d({anglex} 1 0 0)  d({angley} 0 1 0) d({anglez} 0 0 1)'
 # torch.setRelativePose(string)
 # string = f't({centerPoint[0]} {centerPoint[1]} {centerPoint[2]})d({45} 0 1 0)'
 # torch.setRelativePose(string)
@@ -397,16 +411,33 @@ torch.setRelativePosition(centerPoint)
 # torch.setRelativePose(string)
 # set quaternion
 torch.setRelativeQuaternion(quaternion.as_float_array(boardQuarternion))
-torch.setShape(ry.marker, [.6])
+torch.setShape(ry.marker, [.3])
 torch.setColor([1,0,1])
+input("Press Enter to view the object marker...")
 
+C.view()
+torchReal = C.addFrame("torchReal",'torch')
+string = f't(0 0 0)d(-90 0 0 1))'
+
+torchReal.setRelativePose(string)
+input("Press Enter to rotate torch...")
+torchReal.setShape(ry.marker, [.3])
+torchReal.setColor([1,0,1])
+torch.setShape(ry.marker, [.01])
+C.view()
 
 # # find distance from origin
 # d = np.dot(normal,worldPoint1)
 # # find plane
 # plane = np.append(normal,d)
+input("set object on location")
 
-
+torchPyhsical = C.addFrame("torchPyhsical",'torchReal')
+torchPyhsical.setRelativePose('t(0 0 0)')
+torchPyhsical.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
+torchPyhsical.setColor([1,.0,0])
+torchPyhsical.setMass(.1)
+torchPyhsical.setContact(True)
 # display frame
 #cv2.imshow('frame', frame)
 # check if user pressed 'q'
@@ -414,43 +445,18 @@ torch.setColor([1,0,1])
 print(x,y)
 print(w,h)
 
-#cv2.destroyAllWindows()
-#del bot
-#del C
-
-input("Press Enter to continue...")
-
-fx, fy = fxypxy[0], fxypxy[1]
-px, py = fxypxy[2], fxypxy[3]
-R, t = cameraFrame.getRotationMatrix(), cameraFrame.getPosition()
-H, W = depth.shape
-
-    
-# get depth at pixel
-Z = depth[y, x]
-
-point = [1, 2, 3]
-Z += (h/ fx)*0.5
-
-## depth is sign-fliped, j: right, i: down
-point[0] = Z * (x - px) / fx;
-point[1] = -Z * (y - py) / fy;
-point[2] = -Z
-
-h = Z * (h);
-w = Z * w
-
-tmp = C.addFrame( "center of red", cameraType)
-tmp.setShape(ry.ST.ssBox, size=[(w/ fx),(lengthFactor*h/ fy),(heightFactor*w/ fx),.005])
-# tmp.setColor([1,0,0,.5])
-# set blue colour
-tmp.setColor([0,0,1,.5])
-
-tmp.setRelativePosition(arucoPoint)
-
-
-tmp.setRelativeQuaternion(arucoQuaternion)
 C.view()
+input("way point")
+
+# add gripping way point
+
+birdview = C.addFrame("birdview",'torchReal')
+birdview.setRelativePose('t(0 0 0.1)')
+birdview.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
+birdview.setColor([1,0,1,0.3])
+C.view()
+
+
 
 input("Press Enter to continue...")
 
