@@ -8,14 +8,14 @@ import warnings
 
 
 #joint_limit_offset = [0,0,-0.1,-0.1,0,0,0,0,0,0,0,0,0,0]
-joint_limit_offset = [-0.1]
+JOINT_LIMIT_OFFSET = [-0.1]
 
-speed_multiplier = 1.0
-secs_to_hide = 0.9
-painting_speed = 0.4
-moving_speed = 0.5
-move_add_time = 0.0
-hiding_angle = 45
+SPEED_MULTIPLIER = 1.0
+SECS_TO_HIDE = 0.9
+PAINTING_SPEED = 0.4
+MOVING_SPEED = 0.5
+MOVE_ADD_TIME = 0.0
+HIDING_ANLGE = 45
 RESULTION = 40
 PICTURE_SIZE = 1.0 #MAX 0.6 with full size circle
 Z_OFFSET_CENTER = -0.1
@@ -34,6 +34,8 @@ FILENAME = 'cube_depth_big.svg'
 DOUBLE_LINE = False
 
 resultion = RESULTION
+
+
 
 
 # translated from c++ function "Quaternion:setDiff" in file "Quaternion.cpp"
@@ -150,12 +152,12 @@ def getXYZ(path, path_attributes, svg_attributes, depth_interpolation, connected
     z = []
     scalar_product = []
     
-    t_dec = hiding_angle/90*secs_to_hide
-    secs_per_step = (1/resultion)/painting_speed
+    t_dec = HIDING_ANLGE/90*SECS_TO_HIDE
+    secs_per_step = (1/resultion)/PAINTING_SPEED
     steps_to_turn = math.ceil(t_dec/secs_per_step)
     t_dec = secs_per_step*steps_to_turn #Adapt to fixed timesteps
 
-    a = painting_speed/t_dec
+    a = PAINTING_SPEED/t_dec
     
     s_dec = 0.5*a*t_dec**2
     
@@ -187,7 +189,7 @@ def getXYZ(path, path_attributes, svg_attributes, depth_interpolation, connected
             x.append(real(path.point(progress))*resize_factor)
             z.append(imag(path.point(progress))*resize_factor)
             #angle in radians
-            angle = (hiding_angle-i/steps_to_turn*hiding_angle)*math.pi/180
+            angle = (HIDING_ANLGE-i/steps_to_turn*HIDING_ANLGE)*math.pi/180
             scalar_product.append(math.cos(angle))
     
     for i in range(start_constant,steps_constant+1):
@@ -208,7 +210,7 @@ def getXYZ(path, path_attributes, svg_attributes, depth_interpolation, connected
             x.append(real(path.point(progress))*resize_factor)
             z.append(imag(path.point(progress))*resize_factor)
             #angle in radians
-            angle = (i/steps_to_turn*hiding_angle)*math.pi/180
+            angle = (i/steps_to_turn*HIDING_ANLGE)*math.pi/180
             scalar_product.append( math.cos(angle))
 
     if depth_interpolation == 0:
@@ -391,7 +393,7 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
 
         dis_to_start = np.linalg.norm(start_position-current_position)
 
-        secs_to_move = dis_to_start*1/moving_speed
+        secs_to_move = dis_to_start*1/MOVING_SPEED
         
         komo = ry.KOMO()
         komo.setConfig(C, True)
@@ -399,9 +401,9 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
         komo.addControlObjective([], 0, 1e-0)
         
         komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-        komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
+        komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],JOINT_LIMIT_OFFSET);
         if connected_to_previous:
-            komo.addObjective([], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e+0],[math.cos(hiding_angle*math.pi/180)])
+            komo.addObjective([], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e+0],[math.cos(HIDING_ANLGE*math.pi/180)])
             komo.addControlObjective([], 2, 1e+1)
             # secs_to_move += (CLOSE_DISTANCE / moving_speed) * 2.0
         else:
@@ -414,7 +416,7 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
             .setOptions( stopTolerance=1e-2, verbose=4 ) \
             .solve()
         paths.append(komo.getPath())
-        times.append(secs_to_move+move_add_time)
+        times.append(secs_to_move+MOVE_ADD_TIME)
         #print(ret)
 
         if KOMO_VIEW:
@@ -425,18 +427,18 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
 
         if not connected_to_previous:
             #Turn light towards camera
-            secs_to_hide*(90-hiding_angle)/90
+            secs_to_hide_angle = SECS_TO_HIDE*(90-HIDING_ANLGE)/90
 
             C.setJointState(paths[-1][-1])
 
             komo = ry.KOMO()
             komo.setConfig(C, True)
-            komo.setTiming(1., 1, secs_to_hide, 2)
+            komo.setTiming(1., 1, secs_to_hide_angle, 2)
             komo.addControlObjective([], 0, 1e-0)
             komo.addControlObjective([], 2, 1e+1)
             komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-            komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
-            komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e+0],[math.cos(hiding_angle*math.pi/180)])
+            komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],JOINT_LIMIT_OFFSET);
+            komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e+0],[math.cos(HIDING_ANLGE*math.pi/180)])
             komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=start_position);
 
             ret = ry.NLP_Solver() \
@@ -444,7 +446,7 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
                 .setOptions( stopTolerance=1e-2, verbose=4 ) \
                 .solve()
             paths.append(komo.getPath())
-            times.append(secs_to_hide+move_add_time)
+            times.append(secs_to_hide_angle+MOVE_ADD_TIME)
 
             if KOMO_VIEW:
                 komo.view(True, "Turn towards camera")
@@ -454,12 +456,12 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
 
         #Move from start to finish with interpolation
         #Calculate time to paint with accerlation
-        t_dec = hiding_angle/90*secs_to_hide
-        secs_per_step = (1/resultion)/painting_speed
+        t_dec = HIDING_ANLGE/90*SECS_TO_HIDE
+        secs_per_step = (1/resultion)/PAINTING_SPEED
         steps_to_turn = math.ceil(t_dec/secs_per_step)
         t_dec = secs_per_step*steps_to_turn #Adapt to fixed timesteps
 
-        a = painting_speed/t_dec
+        a = PAINTING_SPEED/t_dec
 	    
         s_dec = 0.5*a*t_dec**2
         steps_per_phase = len(waypoint_path)
@@ -475,7 +477,7 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
         #    secs_to_paint -= t_dec
         #if connected_to_next:
         #    secs_to_paint -= t_dec
-        secs_to_paint = (length-2*s_dec)/painting_speed+t_dec*2
+        secs_to_paint = (length-2*s_dec)/PAINTING_SPEED+t_dec*2
 
 
 
@@ -493,7 +495,7 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
         komo.addControlObjective([], 0, 1e-0)
         komo.addControlObjective([], 2, 1e-0)
         komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-        komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
+        komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],JOINT_LIMIT_OFFSET);
 
         gripper_position = C.getFrame('l_gripper').getRotationMatrix()
         
@@ -516,7 +518,7 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
             .solve()
         paths.append(komo.getPath())
         
-        times.append(secs_to_paint+move_add_time)
+        times.append(secs_to_paint+MOVE_ADD_TIME)
 
         print(ret)
 
@@ -526,16 +528,17 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
     
         if not connected_to_next:
             #Rotate torchlight away from camera
+            secs_to_hide_angle = SECS_TO_HIDE*(90-HIDING_ANLGE)/90
             end_position = waypoint_path[-1] # set end position
 
             C.setJointState(paths[-1][-1])
             komo = ry.KOMO()
             komo.setConfig(C, True)
-            komo.setTiming(1., 1, secs_to_hide, 2)
+            komo.setTiming(1., 1, secs_to_hide_angle, 2)
             komo.addControlObjective([], 0, 1e0)
             komo.addControlObjective([], 2, 1e+1)
             komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-            komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
+            komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],JOINT_LIMIT_OFFSET);
             komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
             komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1e1],target=end_position);
 
@@ -544,7 +547,7 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
                 .setOptions( stopTolerance=1e-2, verbose=4 ) \
                 .solve()
             paths.append( komo.getPath())
-            times.append(secs_to_hide+move_add_time)
+            times.append(secs_to_hide_angle+MOVE_ADD_TIME)
 
     return paths, times
 
@@ -581,11 +584,11 @@ while not bot.gripperDone(ry._left):
 #Rotate torchlight away from camera
 komo = ry.KOMO()
 komo.setConfig(C, True)
-komo.setTiming(1., 1, secs_to_hide, 2)
+komo.setTiming(1., 1, SECS_TO_HIDE, 2)
 komo.addControlObjective([], 0, 1e-1)
 komo.addControlObjective([], 2, 1e-0)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
-komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
+komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],JOINT_LIMIT_OFFSET);
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
 komo.addObjective([], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=home_position);
 komo.addObjective([1.], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
@@ -621,7 +624,7 @@ mall = []
 tall = []
 total_time = 0
 for i,motion in enumerate(motions):
-    time_i = float(times[i]/len(motion))/speed_multiplier
+    time_i = float(times[i]/len(motion))/SPEED_MULTIPLIER
     for m in motion:
         mall.append(m)
         total_time += time_i
