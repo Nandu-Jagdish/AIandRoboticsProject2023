@@ -17,16 +17,19 @@ moving_speed = 0.5
 move_add_time = 0.0
 hiding_angle = 45
 RESULTION = 40
-PICTURE_SIZE = 1.1 #MAX 0.6 with full size circle
+PICTURE_SIZE = 1.2 #MAX 0.6 with full size circle
 Z_OFFSET_CENTER = -0.1
+Y_OFFSET = 0.0 # offset in y direction for the whole drawing
 CLOSE_DISTANCE = 0.08 # distance in meter where tunring light away is deemed unnecessary
+Y_RANGE = -0.3 # range in y direction for stroke width levels, set to 0 to disable depth
+DEPTH_CONNECT_TOLERANCE = 0.1 # tolerance for connecting paths in depth, set to 0 to disable connecting
 
 OPTIMIZE_TRAJECTORY_ORDER = False
 CONTINUOUS_DRAWING = False
 FOCUS_ON_CAM = False
 KOMO_VIEW = False
 REAL_ROBOT = False
-FILENAME = 'cube.svg'
+FILENAME = 'cube_depth_big.svg'
 
 DOUBLE_LINE = False
 
@@ -67,6 +70,53 @@ def getRotatedVectorFrameFromPoint(point):
     rotatedVectorFrame.setQuaternion(quat)
     return frameName
 
+def getDepthInterpolation(paths, path_attributes, svg_attributes):
+    depth_interpolation = []
+    start_adjacancies = []
+    end_adjacancies = []
+    for i, path in enumerate(paths):
+        # getSVGParams
+        length, resize_factor, resultion = getSvgPathParams(path, svg_attributes)
+        for j, comparePath in enumerate(paths):
+            if path != comparePath:
+                path_start = np.array([real(path.start), 0, imag(path.start)])
+                path_end = np.array([real(path.end), 0, imag(path.end)])
+                comparePath_start = np.array([real(comparePath.start), 0, imag(comparePath.start)])
+                comparePath_end = np.array([real(comparePath.end), 0, imag(comparePath.end)])
+                tolerance = [DEPTH_CONNECT_TOLERANCE / resize_factor, 0, DEPTH_CONNECT_TOLERANCE / resize_factor]
+                if np.allclose(path_start, comparePath_start, atol=tolerance) or np.allclose(path_start, comparePath_end, atol=tolerance):
+                    start_adjacancies.append(j)
+                if np.allclose(path_end, comparePath_start, atol=tolerance) or np.allclose(path_end, comparePath_end, atol=tolerance):
+                    end_adjacancies.append(j)
+        if len(start_adjacancies) == 0 or len(end_adjacancies) == 0:
+            depth_interpolation.append(0)
+        else:
+            stroke_widths_start = []
+            stroke_widths_end = []
+            for start_adjacency in start_adjacancies:
+                stroke_widths_start.append(getStrokeWidth(path_attributes[start_adjacency]))
+            for end_adjacency in end_adjacancies:
+                stroke_widths_end.append(getStrokeWidth(path_attributes[end_adjacency]))
+            
+            for width in stroke_widths_start:
+                if width not in stroke_widths_end:
+                    # check that two widths are actually at least 5 percent apart
+                    if width * 1.05 < stroke_widths_end[0] or width * 0.95 > stroke_widths_end[0]:
+                        depth_interpolation.append((width, stroke_widths_end[0]))
+                        break
+            if len(depth_interpolation) == i:
+                for width in stroke_widths_end:
+                    if width not in stroke_widths_start:
+                        # check that two widths are actually at least 5 percent apart
+                        if width * 1.05 < stroke_widths_start[0] or width * 0.95 > stroke_widths_start[0]:
+                            depth_interpolation.append((stroke_widths_start[0], width))
+                            break
+            if len(depth_interpolation) == i:
+                depth_interpolation.append(0)
+        start_adjacancies = []
+        end_adjacancies = []
+    return depth_interpolation
+
 def getSvgPathParams(path, svg_attributes):
     length = path.length(error=1e-4)
     height = int(svg_attributes['height'].replace('px',''))
@@ -91,11 +141,12 @@ def getSvgPathParams(path, svg_attributes):
 
     return length, resize_factor, resultion
 
-def getXZ(path, svg_attributes, connected_to_previous, connected_to_next):
+def getXYZ(path, path_attributes, svg_attributes, depth_interpolation, connected_to_previous, connected_to_next, stroke_width_normalize_factor, stroke_width_offset):
     length, resize_factor, resultion = getSvgPathParams(path, svg_attributes)
-    connected_to_previous = False # this is set to False to keept getXZ as is and not change depending on connectivity
+    connected_to_previous = False # this is set to False to keept getXYZ as is and not change depending on connectivity
     connected_to_next = False # in future ths this could be deleted to make the continous drawing even faster
     x = []
+    y = []
     z = []
     scalar_product = []
     
@@ -110,7 +161,7 @@ def getXZ(path, svg_attributes, connected_to_previous, connected_to_next):
     
     if s_dec > length/2: #Path is to short to hide
         warnings.warn("Warning: Path to short to point away from the camera")
-        return([],[],[],0)
+        return([],[],[],[],0)
     
 
     # Calculate the number of steps for the constant speed part depending on connectivity
@@ -160,8 +211,47 @@ def getXZ(path, svg_attributes, connected_to_previous, connected_to_next):
             angle = (i/steps_to_turn*hiding_angle)*math.pi/180
             scalar_product.append( math.cos(angle))
 
-    return x,z,scalar_product, length
+    if depth_interpolation == 0:
+        # set y positon constant, only depending on stroke width
+        stroke_width = getStrokeWidth(path_attributes)
+
+        stroke_width = stroke_width - stroke_width_offset
+        if stroke_width_normalize_factor  > 0:
+            stroke_width = stroke_width / stroke_width_normalize_factor
+        else:
+            stroke_width = 0
+
+        for i in range(len(x)):
+            y.append(stroke_width)
+    else:
+        stroke_width_start = depth_interpolation[0]
+        stroke_width_start = stroke_width_start - stroke_width_offset
+        if stroke_width_normalize_factor  > 0:
+            stroke_width_start = stroke_width_start / stroke_width_normalize_factor
+        else:
+            stroke_width_start = 0
+
+        stroke_width_end = depth_interpolation[1]
+        stroke_width_end = stroke_width_end - stroke_width_offset
+        if stroke_width_normalize_factor  > 0:
+            stroke_width_end = stroke_width_end / stroke_width_normalize_factor
+        else:
+            stroke_width_end = 0
         
+        for i in range(len(x)):
+            y.append(stroke_width_start + (stroke_width_end - stroke_width_start) * (i/len(x)))
+    
+    return x,y,z,scalar_product, length
+
+def getStrokeWidth(path_attributes):
+    style_attr = path_attributes["style"].split(";")
+    # search through separated style attr to find stroke_width
+    stroke_width = 0
+    for style in style_attr:
+        if "stroke-width" in style:
+            stroke_width =  style.split(":")[1]
+            return float(stroke_width.replace('px',''))
+    
 
 def greedyTrajectoryOptimizer(svg_paths, svg_attributes):
     svg_paths_ord = []
@@ -227,7 +317,7 @@ def greedyTrajectoryOptimizer(svg_paths, svg_attributes):
 
 
 def waypoints_from_svg(filepath, center_position):
-    svg_paths, attributes, svg_attributes = svg2paths2(filepath)
+    svg_paths, path_attributes, svg_attributes = svg2paths2(filepath)
     waypoint_paths = []
     scalar_product_paths = []
     lengths = []
@@ -240,8 +330,23 @@ def waypoints_from_svg(filepath, center_position):
     if(OPTIMIZE_TRAJECTORY_ORDER):
         svg_paths, next_trajectory_really_close = greedyTrajectoryOptimizer(svg_paths, svg_attributes)
     if (not CONTINUOUS_DRAWING or not OPTIMIZE_TRAJECTORY_ORDER): # if not enabled, just set all connectivity to false
+        next_trajectory_really_close = []
         for i in range(len(svg_paths)+1):
             next_trajectory_really_close.append(False)
+
+    # calculate normalizing factor for stroke-width
+    sum = 0
+    minWidth = 999
+    maxWidth = 0
+    for attr in path_attributes:
+        stroke_width = getStrokeWidth(attr)
+        if stroke_width != None:
+            if stroke_width < minWidth: minWidth = stroke_width
+            if stroke_width > maxWidth: maxWidth = stroke_width
+    stroke_width_normalize_factor = maxWidth - minWidth
+    stroke_width_offset = minWidth
+
+    depth_interpolation = getDepthInterpolation(svg_paths, path_attributes, svg_attributes)
     
     for i in range(0, len(svg_paths)):
         svg_path = svg_paths[i]
@@ -249,10 +354,10 @@ def waypoints_from_svg(filepath, center_position):
         connected_to_next = next_trajectory_really_close[i+1]
         waypoints = []
         print("Path: ", svg_path)
-        x_vec,z_vec, scalar_product_vec, length = getXZ(svg_path, svg_attributes, connected_to_previous, connected_to_next)
+        x_vec, y_vec, z_vec, scalar_product_vec, length = getXYZ(svg_path, path_attributes[i], svg_attributes, depth_interpolation[i], connected_to_previous, connected_to_next, stroke_width_normalize_factor, stroke_width_offset)
         if len(x_vec) > 0: # check if path actually has points
             for i in range(len(x_vec)):
-                waypoints.append(center_position- [x_vec[i],0,z_vec[i]] +[PICTURE_SIZE/2,0,PICTURE_SIZE/2] + [0,0,Z_OFFSET_CENTER] )
+                waypoints.append(center_position- [x_vec[i],y_vec[i]*Y_RANGE,z_vec[i]] +[PICTURE_SIZE/2,0,PICTURE_SIZE/2] + [0,Y_OFFSET,Z_OFFSET_CENTER] )
             waypoint_paths.append(waypoints)
             lengths.append(length)
             scalar_product_paths.append(scalar_product_vec)
