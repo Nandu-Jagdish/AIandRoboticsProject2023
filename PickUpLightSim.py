@@ -36,14 +36,7 @@ obj.setColor([1,.0,0])
 obj.setMass(.1)
 obj.setContact(True)
 
-boxMarker = RobotGlobal.addFrame('boxMarker', 'obj')
-boxMarker.setShape(ry.marker, size=[.2])
-boxMarker.setRelativePosition([0,0,0.0])
-
-glob = RobotGlobal.addFrame('glob')
-glob.setShape(ry.marker, size=[.5])
-glob.setPose('t(0. 0.0 0.0)')
-
+obj.setPose('t(-0.5 0.0 0.8) d(90 0 0 1)')
 
 
 # create a 5 by grid of black and white boxes that lie on the surface on the "obj" box and all together are the size of the box surface. The boxes are all quadratic and flat. 
@@ -64,6 +57,61 @@ for i in range(6):
         box.setRelativePose('t('+str(-boxSize/2.0+boxSize/12.0+boxSize/6.0*i)+' '+str(-boxSize/2.0+boxSize/12.0+boxSize/6.0*j)+' ' + str(heightFactor*boxSize/2.0) +  ')')
 
 
+# set initial pose of the robot
+objWaypoint = RobotGlobal.addFrame('objWaypoint', 'obj')
+objWaypoint.setRelativePosition([0,0,0.5])
+objWaypoint.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
+objWaypoint.setColor([1,.0,0,0.2])
+RobotGlobal.view()
+
+
+input("Press Enter to move home..")
+
+bot = ry.BotOp(RobotGlobal, False)
+bot.home(RobotGlobal)
+while bot.getTimeToEnd()>0:
+    bot.sync(RobotGlobal, .1)
+
+# komo problem for initial pose
+komo = ry.KOMO()
+komo.setConfig(RobotGlobal, True)
+komo.setTiming(2., 1, 5., 0)
+komo.addControlObjective([], 0, 1e-0)
+komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
+komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
+komo.addObjective([], ry.FS.poseDiff, ['l_gripper', 'objWaypoint'], ry.OT.eq, [1e1]);
+
+ret = ry.NLP_Solver() \
+    .setProblem(komo.nlp()) \
+    .setOptions( stopTolerance=1e-2, verbose=4 ) \
+    .solve()
+print(ret)
+
+komo.view(True, "waypoints solution")
+path = komo.getPath()
+
+
+
+input("Press Enter to move to torch initial location...")
+
+bot.move(path, [3])
+while bot.getTimeToEnd()>0:
+    bot.sync(RobotGlobal, .1)
+
+
+
+boxMarker = RobotGlobal.addFrame('boxMarker', 'obj')
+boxMarker.setShape(ry.marker, size=[.2])
+boxMarker.setRelativePosition([0,0,0.0])
+
+glob = RobotGlobal.addFrame('glob')
+glob.setShape(ry.marker, size=[.5])
+glob.setPose('t(0. 0.0 0.0)')
+
+
+
+
+
 #cameraFrame = C.addFrame("myCamera")
 #cameraFrame.setShape(ry.ST.marker, [0.3])
 #cameraFrame.setPosition([0,0,2.0])
@@ -74,8 +122,7 @@ RobotGlobal.view()
 
 input("Press Enter to continue...")
 
-bot = ry.BotOp(RobotGlobal, False)
-bot.home(RobotGlobal)
+
 
 rgb, depth = bot.getImageAndDepth(cameraType)
 
@@ -345,11 +392,7 @@ obj.setColor([1,0,1,0.3])
 input("Press Enter to view the 4 points...")
 RobotGlobal.view()
 
-input("press ENTER to move to home position after point mapping")
 
-bot.home(RobotGlobal)
-while bot.getTimeToEnd()>0:
-    bot.sync(RobotGlobal, .1)
 
 
 
@@ -455,11 +498,7 @@ globalObjectWay0.setColor([1,0,1,0.3])
 RobotGlobal.view()
 
 
-input("press ENTER to move to home position before komo")
 
-bot.home(RobotGlobal)
-while bot.getTimeToEnd()>0:
-    bot.sync(RobotGlobal, .1)
 input("Press Enter to continue...")
 
 # define komo problem
