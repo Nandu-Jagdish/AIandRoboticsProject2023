@@ -13,7 +13,7 @@ RobotGlobal = ry.Config()
 RobotGlobal.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 cameraType = 'cameraWrist'
 # cameraType = 'camera'
-
+SIMULATION_ANGLE = True
 
 
 cameraFrame = RobotGlobal.getFrame(cameraType)
@@ -62,6 +62,9 @@ objWaypoint = RobotGlobal.addFrame('objWaypoint', 'obj')
 objWaypoint.setRelativePosition([0,0,0.5])
 objWaypoint.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
 objWaypoint.setColor([1,.0,0,0.2])
+
+if SIMULATION_ANGLE:
+    objWaypoint.setRelativePose('t(0 0 0.5) d(10 0 0 1) d(10 0 1 0)')
 RobotGlobal.view()
 
 
@@ -527,9 +530,10 @@ path = komo.getPath()
 
 # bot = ry.BotOp(C, False)
 
-input("press ENTER to move to home position")
+input("press ENTER to move to Gripping position")
 
-bot.home(RobotGlobal)
+# bot.home(RobotGlobal)
+bot.move(path, [3])
 while bot.getTimeToEnd()>0:
     bot.sync(RobotGlobal, .1)
     
