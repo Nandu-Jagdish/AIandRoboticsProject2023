@@ -8,20 +8,20 @@ import matplotlib.pyplot as plt
 import quaternion
 from utils.robotUtils import mapTOWorldSpace
 
-C = ry.Config()
+RobotGlobal = ry.Config()
 # C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandasTable.g'))
-C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
+RobotGlobal.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 cameraType = 'cameraWrist'
 # cameraType = 'camera'
 
 
 
-cameraFrame = C.getFrame(cameraType)
+cameraFrame = RobotGlobal.getFrame(cameraType)
 # cameraFrame.setPosition([0,-0.18,1.2])
 # cameraFrame.setPose('t(.2 0.3 1.8) d(45 0 1 0)')
 
 
-camerMarker = C.addFrame('cameraMarker', cameraType)
+camerMarker = RobotGlobal.addFrame('cameraMarker', cameraType)
 camerMarker.setShape(ry.marker, size=[.5])
 camerMarker.setRelativePosition([0,0,0.0])
 
@@ -29,18 +29,18 @@ boxSize = 0.07
 heightFactor = 0.7
 lengthFactor = 2.5
 
-obj = C.addFrame('obj')
+obj = RobotGlobal.addFrame('obj')
 obj.setPose('t(0. 0.5 0.8)')
 obj.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
 obj.setColor([1,.0,0])
 obj.setMass(.1)
 obj.setContact(True)
 
-boxMarker = C.addFrame('boxMarker', 'obj')
+boxMarker = RobotGlobal.addFrame('boxMarker', 'obj')
 boxMarker.setShape(ry.marker, size=[.2])
 boxMarker.setRelativePosition([0,0,0.0])
 
-glob = C.addFrame('glob')
+glob = RobotGlobal.addFrame('glob')
 glob.setShape(ry.marker, size=[.5])
 glob.setPose('t(0. 0.0 0.0)')
 
@@ -54,7 +54,7 @@ color = np.rot90(color, k=1, axes=(1, 0))
 
 for i in range(6):
     for j in range(6):
-        box = C.addFrame('box_'+str(i)+'_'+str(j), 'obj')
+        box = RobotGlobal.addFrame('box_'+str(i)+'_'+str(j), 'obj')
         #box.setShape(ry.ST.ssBox, size=[.01,.01,.001,.00])
         box.setShape(ry.ST.ssBox, size=[boxSize/6.0, boxSize/6.0, 0.001, 0.00])
         box.setColor([color[i][j],color[i][j],color[i][j]])
@@ -70,12 +70,12 @@ for i in range(6):
 #cameraFrame.setPosition([0,1.0,2.0])
 #cameraFrame.setQuaternion([1,-0.5,0,1])
 
-C.view()
+RobotGlobal.view()
 
 input("Press Enter to continue...")
 
-bot = ry.BotOp(C, False)
-bot.home(C)
+bot = ry.BotOp(RobotGlobal, False)
+bot.home(RobotGlobal)
 
 rgb, depth = bot.getImageAndDepth(cameraType)
 
@@ -95,7 +95,7 @@ rgb, depth = bot.getImageAndDepth(cameraType)
 fxypxy = bot.getCameraFxypxy(cameraType)
 print(fxypxy)
 depth.shape
-cameraFrame = C.getFrame(cameraType)
+cameraFrame = RobotGlobal.getFrame(cameraType)
 
 # fig = plt.figure(figsize=(10,5))
 # axs = fig.subplots(1, 2)
@@ -129,6 +129,8 @@ corners, ids, rejected = detector.detectMarkers(gray)
 #print(ids)
 # draw markers on frame
 frame = cv2.aruco.drawDetectedMarkers(frame, corners, ids)
+
+
 # get camera pose
 
 # define dummy values for camera matrix and distortion coefficients
@@ -178,7 +180,7 @@ def mapTOWorldSpace_old(point,z,fxypxy):
     return point
 
 
-C.view()
+RobotGlobal.view()
 #get center of marker
 print(ids)
 if ids is not None:
@@ -230,8 +232,8 @@ if ids is not None:
 
 
 # display frame using matplotlib
-# plt.imshow(frame)
-# plt.show()
+plt.imshow(frame)
+plt.show()
 
        
 def colourDetection(frame,colour):
@@ -300,6 +302,7 @@ def contourDetection(frame):
 
 
 
+
 RedPoint1 = mapTOWorldSpace((y1,x1),depth[y1,x1],fxypxy)
 BluePoint2 = mapTOWorldSpace((y2,x2),depth[y2,x2],fxypxy)
 YellowPoint3 = mapTOWorldSpace((y3,x3),depth[y3,x3],fxypxy)
@@ -307,46 +310,50 @@ GreenPoint4 = mapTOWorldSpace((y4,x4),depth[y4,x4],fxypxy)
 # centerPoint = mapTOWorldSpace((cy,cx),depth[cy,cx],fxypxy
 centerPoint = mapTOWorldSpace(centerOfAruco,depth[centerOfAruco[0],centerOfAruco[1]],fxypxy)
 
-RedFrame = C.addFrame("RedFramePoint",cameraType)
+
+
+RedFrame = RobotGlobal.addFrame("RedFramePoint",cameraType)
 RedFrame.setRelativePosition(RedPoint1)
 print('\nRedPoint1: ',RedPoint1)
 RedFrame.setShape(ry.ST.sphere, [0.019])
 RedFrame.setColor([1,0,0])
 
-BlueFrame = C.addFrame("BlueFramePoint",cameraType)
+BlueFrame = RobotGlobal.addFrame("BlueFramePoint",cameraType)
 BlueFrame.setRelativePosition(BluePoint2)
 BlueFrame.setShape(ry.ST.sphere, [0.019])
 BlueFrame.setColor([0,1,0])
 print('\nBluePoint2: ',BluePoint2)
 
-YelloFrame = C.addFrame("YelloFramePoint",cameraType)
+YelloFrame = RobotGlobal.addFrame("YelloFramePoint",cameraType)
 YelloFrame.setRelativePosition(YellowPoint3)
 YelloFrame.setShape(ry.ST.sphere, [0.019])
 YelloFrame.setColor([0,0,1])
 print('\nYellowPoint3: ',YellowPoint3)
 
-GreenFrame = C.addFrame("GreenFramePoint",cameraType)
+GreenFrame = RobotGlobal.addFrame("GreenFramePoint",cameraType)
 GreenFrame.setRelativePosition(GreenPoint4)
 GreenFrame.setShape(ry.ST.sphere, [0.019])
 GreenFrame.setColor([1,1,0])
 print('\nGreenPoint4: ',GreenPoint4)
 
-CenterFrame = C.addFrame("CenterFramePoint",cameraType)
+CenterFrame = RobotGlobal.addFrame("CenterFramePoint",cameraType)
 CenterFrame.setRelativePosition(centerPoint)
 CenterFrame.setShape(ry.ST.sphere, [0.019])
 CenterFrame.setColor([1,0,1])
 print('\nCenterPoint: ',centerPoint)
 obj.setColor([1,0,1,0.3])
 input("Press Enter to view the 4 points...")
-C.view()
+RobotGlobal.view()
 
+input("press ENTER to move to home position after point mapping")
 
-
-input("press ENTER to move to home position")
-
-bot.home(C)
+bot.home(RobotGlobal)
 while bot.getTimeToEnd()>0:
-    bot.sync(C, .1)
+    bot.sync(RobotGlobal, .1)
+
+
+
+
 
 # find normalised vector of plane
 # find vector between two points
@@ -374,60 +381,29 @@ widthAxis = widthAxis/np.linalg.norm(widthAxis)
 rotationMatrix = np.column_stack((widthAxis,lengthAxis,heightAxis))
 
 boardQuarternion = quaternion.from_rotation_matrix(rotationMatrix)
-# find cross product
-normal = np.cross(v1,v2)
-# normalise
-normal = normal/np.linalg.norm(normal)
-# find angle between normal and x axis
-anglex = np.arccos(np.dot(normal,[1,0,0])/(np.linalg.norm(normal)*np.linalg.norm([1,0,0])))
-# convert to degrees
-anglex = np.degrees(anglex)
-# Find angle between normal and z axis
-anglez = np.arccos(np.dot(normal,[0,0,1])/(np.linalg.norm(normal)*np.linalg.norm([0,0,1])))
-# convert to degrees
-anglez = np.degrees(anglez)
-# Find angle between normal and y axis
-angley = np.arccos(np.dot(normal,[0,1,0])/(np.linalg.norm(normal)*np.linalg.norm([0,1,0])))
-# convert to degrees
-angley = np.degrees(angley)
 
 
-#find angle between vector and x axis
-angle = np.arccos(np.dot(v1,[1,0,0])/(np.linalg.norm(v1)*np.linalg.norm([1,0,0])))
-# convert to degrees
-angle = np.degrees(angle)
 
-
-# v2 = worldPoint1 - worldPoint3
-# find cross product
-# normal = np.cross(v1,v2)
-# normalise
-# normal = normal/np.linalg.norm(normal)
 
 # centerPoint = [0.,0.,0.]
-torch = C.addFrame("torch",cameraType)
+torch = RobotGlobal.addFrame("torch",cameraType)
 torch.setRelativePosition(centerPoint)
-# torch.setRelativePose(string)
-# string = f't({centerPoint[0]} {centerPoint[1]} {centerPoint[2]})d({45} 0 1 0)'
-# torch.setRelativePose(string)
-# string = f't({centerPoint[0]} {centerPoint[1]} {centerPoint[2]})d({45} 0 0 0)'
-# torch.setRelativePose(string)
-# set quaternion
 torch.setRelativeQuaternion(quaternion.as_float_array(boardQuarternion))
 torch.setShape(ry.marker, [.3])
 torch.setColor([1,0,1])
 input("Press Enter to view the object marker...")
 
-C.view()
-torchReal = C.addFrame("torchReal",'torch')
+RobotGlobal.view()
+torchReal = RobotGlobal.addFrame("torchReal",'torch')
 string = f't(0 0 0)d(-90 0 0 1))'
 
 torchReal.setRelativePose(string)
 input("Press Enter to rotate torch...")
 torchReal.setShape(ry.marker, [.3])
-torchReal.setColor([1,0,1])
+torchReal.setColor([1,0,1,0.1])
 torch.setShape(ry.marker, [.01])
-C.view()
+RobotGlobal.view()
+
 
 # # find distance from origin
 # d = np.dot(normal,worldPoint1)
@@ -435,12 +411,12 @@ C.view()
 # plane = np.append(normal,d)
 input("set object on location")
 
-torchPyhsical = C.addFrame("torchPyhsical",'torchReal')
-torchPyhsical.setRelativePose('t(0 0 0)')
-torchPyhsical.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
-torchPyhsical.setColor([1,.0,0])
-torchPyhsical.setMass(.1)
-torchPyhsical.setContact(True)
+# torchPyhsical = RobotGlobal.addFrame("torchPyhsical",'torchReal')
+# torchPyhsical.setRelativePose('t(0 0 0)')
+# torchPyhsical.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
+# torchPyhsical.setColor([1,.0,0])
+# torchPyhsical.setMass(.1)
+# torchPyhsical.setContact(True)
 # display frame
 #cv2.imshow('frame', frame)
 # check if user pressed 'q'
@@ -448,37 +424,47 @@ torchPyhsical.setContact(True)
 print(x,y)
 print(w,h)
 
-C.view()
+RobotGlobal.view()
 input("way point")
 
 # add gripping way point
 
-birdview = C.addFrame("birdview",'torchReal')
-birdview.setRelativePose('t(0 0 0.1)')
-birdview.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
-birdview.setColor([1,0,1,0.3])
-C.view()
+# birdview = RobotGlobal.addFrame("birdview",'torchReal')
+# birdview.setRelativePose('t(0 0 0.1)')
+# birdview.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
+# birdview.setColor([1,0,1,0.3])
+# RobotGlobal.view()
 
 
 
 
 # map to global coordinates
-globalObjectWay1 =  C.addFrame("globalObjectWay1")
+globalObjectWay1 =  RobotGlobal.addFrame("globalObjectWay1")
 globalObjectWay1.setPosition(torchReal.getPosition())
 globalObjectWay1.setQuaternion(torchReal.getQuaternion())
 globalObjectWay1.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
-globalObjectWay1.setColor([1,0,1])
-C.view()
+globalObjectWay1.setColor([0,1,0])
+# globalObjectWay1.setMass(.1)
+# globalObjectWay1.setContact(True)
+RobotGlobal.view()
 
-globalObjectWay0 =  C.addFrame("globalObjectWay0","globalObjectWay1")
-globalObjectWay0.setPose('t(0 0 0.1)')
+globalObjectWay0 =  RobotGlobal.addFrame("globalObjectWay0","globalObjectWay1")
+globalObjectWay0.setRelativePose('t(0 0 0.1)')
+globalObjectWay0.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
+globalObjectWay0.setColor([1,0,1,0.3])
+RobotGlobal.view()
 
 
+input("press ENTER to move to home position before komo")
+
+bot.home(RobotGlobal)
+while bot.getTimeToEnd()>0:
+    bot.sync(RobotGlobal, .1)
 input("Press Enter to continue...")
 
 # define komo problem
 komo = ry.KOMO()
-komo.setConfig(C, True)
+komo.setConfig(RobotGlobal, True)
 komo.setTiming(2., 1, 5., 0)
 komo.addControlObjective([], 0, 1e-0)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
@@ -504,32 +490,32 @@ path = komo.getPath()
 
 input("press ENTER to move to home position")
 
-bot.home(C)
+bot.home(RobotGlobal)
 while bot.getTimeToEnd()>0:
-    bot.sync(C, .1)
+    bot.sync(RobotGlobal, .1)
     
 input("press ENTER to open gripper")
 bot.gripperOpen(ry._left)
 while not bot.gripperDone(ry._left):
-    bot.sync(C, .1)
+    bot.sync(RobotGlobal, .1)
     
 input("press ENTER to move to gripping pose")
 bot.move(path, [10])
 while bot.getTimeToEnd()>0:
-    bot.sync(C, .1)
+    bot.sync(RobotGlobal, .1)
     
 input("press ENTER to close gripper")
 bot.gripperClose(ry._left)
 while not bot.gripperDone(ry._left):
-    bot.sync(C, .1)
+    bot.sync(RobotGlobal, .1)
     
 input("press ENTER to move to home position")
-bot.home(C)
+bot.home(RobotGlobal)
 
 input("press ENTER to open gripper")
 bot.gripperOpen(ry._left)
 while not bot.gripperDone(ry._left):
-    bot.sync(C, .1)
+    bot.sync(RobotGlobal, .1)
 
 
 
