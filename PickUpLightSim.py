@@ -300,7 +300,6 @@ def contourDetection(frame):
 
 
 
-
 RedPoint1 = mapTOWorldSpace((y1,x1),depth[y1,x1],fxypxy)
 BluePoint2 = mapTOWorldSpace((y2,x2),depth[y2,x2],fxypxy)
 YellowPoint3 = mapTOWorldSpace((y3,x3),depth[y3,x3],fxypxy)
@@ -343,7 +342,11 @@ C.view()
 
 
 
+input("press ENTER to move to home position")
 
+bot.home(C)
+while bot.getTimeToEnd()>0:
+    bot.sync(C, .1)
 
 # find normalised vector of plane
 # find vector between two points
@@ -458,34 +461,31 @@ C.view()
 
 
 
+
+# map to global coordinates
+globalObjectWay1 =  C.addFrame("globalObjectWay1")
+globalObjectWay1.setPosition(torchReal.getPosition())
+globalObjectWay1.setQuaternion(torchReal.getQuaternion())
+globalObjectWay1.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
+globalObjectWay1.setColor([1,0,1])
+C.view()
+
+globalObjectWay0 =  C.addFrame("globalObjectWay0","globalObjectWay1")
+globalObjectWay0.setPose('t(0 0 0.1)')
+
+
 input("Press Enter to continue...")
 
-# manually define frames as an endeff waypoints, relative to box:
-way0 = C.addFrame('way0', 'center of red')
-way1 = C.addFrame('way1', 'center of red')
-way2 = C.addFrame('way2', 'center of red')
-way2.setShape(ry.ST.marker, size=[.5])
-way2.setRelativePose('t(0 0 .3) d(180 1 0 0)')
-
-way0.setShape(ry.ST.marker, size=[.1])
-way0.setRelativePose('t(0 0 -.2)  d(180 1 0 0)')
-#way0.setRelativePose('t(0 0 .1)')
-
-way1.setShape(ry.ST.marker, size=[.1])
-way1.setRelativePose(' d(180 1 0 0)')
-
-C.view()
-print("dome")
-
+# define komo problem
 komo = ry.KOMO()
 komo.setConfig(C, True)
 komo.setTiming(2., 1, 5., 0)
 komo.addControlObjective([], 0, 1e-0)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
-#komo.addObjective([1.], ry.FS.scalarProductXZ, ['l_gripper','way0'], ry.OT.eq, [1e1]);
-komo.addObjective([1.], ry.FS.poseDiff, ['l_gripper', 'way0'], ry.OT.eq, [1e1]);
-komo.addObjective([2.], ry.FS.poseDiff, ['l_gripper', 'way1'], ry.OT.eq, [1e1]);
+komo.addObjective([1.], ry.FS.poseDiff, ['l_gripper', 'globalObjectWay0'], ry.OT.eq, [1e1]);
+komo.addObjective([2.], ry.FS.poseDiff, ['l_gripper', 'globalObjectWay1'], ry.OT.eq, [1e1]);
+
 
 ret = ry.NLP_Solver() \
     .setProblem(komo.nlp()) \
@@ -495,16 +495,20 @@ print(ret)
 
 komo.view(True, "waypoints solution")
 
+
+
 # komo.view_close()
 path = komo.getPath()
 
-bot = ry.BotOp(C, False)
+# bot = ry.BotOp(C, False)
 
 input("press ENTER to move to home position")
 
 bot.home(C)
+while bot.getTimeToEnd()>0:
+    bot.sync(C, .1)
     
-
+input("press ENTER to open gripper")
 bot.gripperOpen(ry._left)
 while not bot.gripperDone(ry._left):
     bot.sync(C, .1)
@@ -526,3 +530,41 @@ input("press ENTER to open gripper")
 bot.gripperOpen(ry._left)
 while not bot.gripperDone(ry._left):
     bot.sync(C, .1)
+
+
+
+# junk yard
+
+# way0 = C.addFrame('way0', 'center of red')
+# way1 = C.addFrame('way1', 'center of red')
+# way2 = C.addFrame('way2', 'center of red')
+# way2.setShape(ry.ST.marker, size=[.5])
+# way2.setRelativePose('t(0 0 .3) d(180 1 0 0)')
+
+# way0.setShape(ry.ST.marker, size=[.1])
+# way0.setRelativePose('t(0 0 -.2)  d(180 1 0 0)')
+# #way0.setRelativePose('t(0 0 .1)')
+
+# way1.setShape(ry.ST.marker, size=[.1])
+# way1.setRelativePose(' d(180 1 0 0)')
+
+# C.view()
+# print("dome")
+
+# komo = ry.KOMO()
+# komo.setConfig(C, True)
+# komo.setTiming(2., 1, 5., 0)
+# komo.addControlObjective([], 0, 1e-0)
+# komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
+# komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
+# #komo.addObjective([1.], ry.FS.scalarProductXZ, ['l_gripper','way0'], ry.OT.eq, [1e1]);
+# komo.addObjective([1.], ry.FS.poseDiff, ['l_gripper', 'way0'], ry.OT.eq, [1e1]);
+# komo.addObjective([2.], ry.FS.poseDiff, ['l_gripper', 'way1'], ry.OT.eq, [1e1]);
+
+# ret = ry.NLP_Solver() \
+#     .setProblem(komo.nlp()) \
+#     .setOptions( stopTolerance=1e-2, verbose=4 ) \
+#     .solve()
+# print(ret)
+
+# # komo.view(True, "waypoints solution")
