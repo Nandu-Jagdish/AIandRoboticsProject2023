@@ -17,15 +17,15 @@ moving_speed = 0.5
 move_add_time = 0.0
 hiding_angle = 45
 RESULTION = 40
-PICTURE_SIZE = 1.2 #MAX 0.6 with full size circle
+PICTURE_SIZE = 1.0 #MAX 0.6 with full size circle
 Z_OFFSET_CENTER = -0.1
-Y_OFFSET = 0.0 # offset in y direction for the whole drawing
+Y_OFFSET = -0.15 # offset in y direction for the whole drawing
 CLOSE_DISTANCE = 0.08 # distance in meter where tunring light away is deemed unnecessary
 Y_RANGE = -0.3 # range in y direction for stroke width levels, set to 0 to disable depth
-DEPTH_CONNECT_TOLERANCE = 0.1 # tolerance for connecting paths in depth, set to 0 to disable connecting
+DEPTH_CONNECT_TOLERANCE = 0.05 # tolerance for connecting paths in depth, set to 0 to disable connecting
 
-OPTIMIZE_TRAJECTORY_ORDER = False
-CONTINUOUS_DRAWING = False
+OPTIMIZE_TRAJECTORY_ORDER = True
+CONTINUOUS_DRAWING = True
 FOCUS_ON_CAM = False
 KOMO_VIEW = False
 REAL_ROBOT = False
@@ -253,8 +253,9 @@ def getStrokeWidth(path_attributes):
             return float(stroke_width.replace('px',''))
     
 
-def greedyTrajectoryOptimizer(svg_paths, svg_attributes):
+def greedyTrajectoryOptimizer(svg_paths, path_attributes, svg_attributes):
     svg_paths_ord = []
+    path_attributes_ord = []
 
     last_trajectory_end_point = [10,10,10]
     number_of_trajectories = len(svg_paths)
@@ -286,12 +287,15 @@ def greedyTrajectoryOptimizer(svg_paths, svg_attributes):
         last_trajectory_end_point = predicted_last_trajectory_end_point
         if first_or_second == 0:
             svg_paths_ord.append(svg_paths[trajectory])
+            path_attributes_ord.append(path_attributes[trajectory])
         else:
             svg_paths_ord.append(svg_paths[trajectory].reversed())
+            path_attributes_ord.append(path_attributes[trajectory])
             
 
         # remove trajectory from list of possible trajectories
         svg_paths.pop(trajectory)
+        path_attributes.pop(trajectory)
 
         # create an array that contains whether the following trajectory is so close that the light should not be turned away
         next_trajectory_really_close = [False] # when starting always have to turn towards
@@ -313,7 +317,7 @@ def greedyTrajectoryOptimizer(svg_paths, svg_attributes):
             
         next_trajectory_really_close.append(False) #  when finishing always has to turn away
 
-    return svg_paths_ord, next_trajectory_really_close
+    return svg_paths_ord, path_attributes_ord, next_trajectory_really_close
 
 
 def waypoints_from_svg(filepath, center_position):
@@ -328,7 +332,7 @@ def waypoints_from_svg(filepath, center_position):
     next_trajectory_really_close = []
     # OPTIMIZE TRAJECTORY ORDER if enabled
     if(OPTIMIZE_TRAJECTORY_ORDER):
-        svg_paths, next_trajectory_really_close = greedyTrajectoryOptimizer(svg_paths, svg_attributes)
+        svg_paths, path_attributes, next_trajectory_really_close = greedyTrajectoryOptimizer(svg_paths, path_attributes, svg_attributes)
     if (not CONTINUOUS_DRAWING or not OPTIMIZE_TRAJECTORY_ORDER): # if not enabled, just set all connectivity to false
         next_trajectory_really_close = []
         for i in range(len(svg_paths)+1):
@@ -396,10 +400,10 @@ def waypoints2motion(C,waypoint_paths, scalar_product_paths, lengths , next_traj
         
         komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
         komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1],joint_limit_offset);
-        if connected_to_next:
+        if connected_to_previous:
             komo.addObjective([], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e+0],[math.cos(hiding_angle*math.pi/180)])
             komo.addControlObjective([], 2, 1e+1)
-            secs_to_move += (CLOSE_DISTANCE / moving_speed) * 2.0
+            # secs_to_move += (CLOSE_DISTANCE / moving_speed) * 2.0
         else:
             komo.addObjective([], ry.FS.scalarProductYY, ['l_gripper','world'], ry.OT.eq, [1e1],[0])
             komo.addControlObjective([], 2, 1e-0)
