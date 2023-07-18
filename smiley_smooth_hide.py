@@ -10,25 +10,27 @@ import warnings
 #joint_limit_offset = [0,0,-0.1,-0.1,0,0,0,0,0,0,0,0,0,0]
 JOINT_LIMIT_OFFSET = [-0.1]
 
-SPEED_MULTIPLIER = 1.0
-SECS_TO_HIDE = 1.0
+SPEED_MULTIPLIER = 0.7
+SECS_TO_HIDE = 1.2
 PAINTING_SPEED = 0.4
 MOVING_SPEED = 0.5
 MOVE_ADD_TIME = 0.0
-HIDING_ANLGE = 45
+HIDING_ANLGE = 25
 RESULTION = 40
-PICTURE_SIZE = 1.0 #MAX 0.6 with full size circle
-Z_OFFSET_CENTER = -0.1
-Y_OFFSET = -0.15 # offset in y direction for the whole drawing
+PICTURE_SIZE = 0.6 #MAX 0.6 with full size circle
+Z_OFFSET_CENTER = -0.2
+Y_OFFSET = -0.20 # offset in y direction for the whole drawing
 CLOSE_DISTANCE = 0.08 # distance in meter where tunring light away is deemed unnecessary
 Y_RANGE = -0.3 # range in y direction for stroke width levels, set to 0 to disable depth
 DEPTH_CONNECT_TOLERANCE = 0.05 # tolerance for connecting paths in depth, set to 0 to disable connecting
+
+EXT_CAM = [0,0.93,0]
 
 OPTIMIZE_TRAJECTORY_ORDER = True
 CONTINUOUS_DRAWING = True
 FOCUS_ON_CAM = False
 KOMO_VIEW = False
-REAL_ROBOT = False
+REAL_ROBOT = True
 FILENAME = 'cube_depth_big.svg'
 
 DOUBLE_LINE = False
@@ -590,12 +592,7 @@ C = ry.Config()
 C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 C.view(False)
 
-# define external camera frame
-# y has to be at least 1.0 to not cause undesired swirling around the external camera
-cam = C.addFrame( "externalCamera")
-cam.setShape(ry.ST.ssBox, size=[.1,.1,.1,.005])
-cam.setColor([1,0,0,1])
-cam.setPose("t(0 1.0 1.2)")
+
 
 input("Press Enter to home")
 bot = ry.BotOp(C, REAL_ROBOT)
@@ -604,6 +601,14 @@ bot.home(C)
 while bot.getTimeToEnd()>0:
     bot.sync(C, .1)
 home_position = C.getFrame('l_gripper').getPosition()
+
+# define external camera frame
+# y has to be at least 1.0 to not cause undesired swirling around the external camera
+cam = C.addFrame( "externalCamera")
+cam.setShape(ry.ST.ssBox, size=[.1,.1,.1,.005])
+cam.setColor([1,0,0,1])
+cam.setPose("t(" + str(home_position[0]+EXT_CAM[0]) + " " + str(home_position[1]+EXT_CAM[1]) + " " + str(home_position[2]+EXT_CAM[2]) + ")")
+# cam.setPose("t(0 1.0 1.2)")
 
 
 
