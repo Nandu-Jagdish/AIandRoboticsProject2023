@@ -20,6 +20,7 @@ def getXZ(path, svg_attributes, resultion=50):
     return x,z,length
 
 
+
 svg_paths, attributes, svg_attributes = svg2paths2('smiley.svg')
 
 C = ry.Config()
@@ -45,13 +46,13 @@ for svg_path in svg_paths:
 
     komo = ry.KOMO()
     komo.setConfig(C, True)
-    komo.setTiming(2., 1, 1, 1)
+    komo.setTiming(1., 1, 1, 1)
     komo.addControlObjective([], 0, 1e-0)
     komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
     komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
     komo.addObjective([], ry.FS.vectorY, ['l_gripper'], ry.OT.eq, [1e1],[0,-1,0])
-    komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=home_pose);
-    komo.addObjective([2.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=start_pose);
+    komo.addObjective([0.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=home_pose);
+    komo.addObjective([1.], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=start_pose);
 
     ret = ry.NLP_Solver() \
         .setProblem(komo.nlp()) \
@@ -69,27 +70,29 @@ for svg_path in svg_paths:
 
 
     #Move from start to finish with interpolation
+    steps_per_phase = len(x)
+    secs_per_phase = length*5
     komo = ry.KOMO()
     komo.setConfig(C, True)
-    komo.setTiming(len(x)+1, 1, 1., 2)
+    komo.setTiming(1, steps_per_phase, secs_per_phase, 2)
     komo.addControlObjective([], 2, 1e-0)
     komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
     komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
     komo.addObjective([], ry.FS.vectorY, ['l_gripper'], ry.OT.eq, [1e1],[0,-1,0])
 
 
-    for x,z,i in zip(x,z,range(1,len(x)+1)):
+    for x,z,i in zip(x,z,range(len(x))):
         waypoint = home_pose +[-0.5,0,-0.5] + [x,0,z]
-        komo.addObjective([i], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=waypoint);
+        komo.addObjective([i*1/steps_per_phase], ry.FS.position,['l_gripper'], ry.OT.eq,scale=[1,1,1],target=waypoint);
 
     ret = ry.NLP_Solver() \
         .setProblem(komo.nlp()) \
         .setOptions( stopTolerance=1e-2, verbose=4 ) \
         .solve()
     path = komo.getPath() 
-
+    print(f"Time for step: {secs_per_phase}")
     input("Press Enter to move to goal postion with interpolation")
-    bot.move(path,[length*5])
+    bot.move(path,[secs_per_phase*2])
     while bot.getTimeToEnd()>0:
         bot.sync(C, .1)
 
