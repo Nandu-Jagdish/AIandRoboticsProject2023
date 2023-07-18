@@ -14,8 +14,8 @@ RobotGlobal = ry.Config()
 RobotGlobal.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 cameraType = 'cameraWrist'
 # cameraType = 'camera'
-SIMULATION_ANGLE = False
-RealRObot = True
+SIMULATION_ANGLE = True
+RealRObot = False
 
 
 cameraFrame = RobotGlobal.getFrame(cameraType)
@@ -35,8 +35,8 @@ obj = RobotGlobal.addFrame('obj')
 obj.setPose('t(0. 0.5 0.8)')
 obj.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
 obj.setColor([1,.0,0])
-obj.setMass(.1)
-obj.setContact(True)
+# obj.setMass(.1)
+obj.setContact(False)
 
 obj.setPose('t(-0.5 0.0 0.8) d(90 0 0 1)')
 
@@ -53,7 +53,7 @@ for i in range(6):
         #box.setShape(ry.ST.ssBox, size=[.01,.01,.001,.00])
         box.setShape(ry.ST.ssBox, size=[boxSize/6.0, boxSize/6.0, 0.001, 0.00])
         box.setColor([color[i][j],color[i][j],color[i][j]])
-        box.setMass(0)
+        # box.setMass(0)
         box.setContact(False)
         #box.setRelativePose('t('+str(-0.02+0.01*i)+' '+str(-0.02+0.01*j)+' 0.025)')
         box.setRelativePose('t('+str(-boxSize/2.0+boxSize/12.0+boxSize/6.0*i)+' '+str(-boxSize/2.0+boxSize/12.0+boxSize/6.0*j)+' ' + str(heightFactor*boxSize/2.0) +  ')')
@@ -479,6 +479,10 @@ globalObjectWay1.setPosition(torchReal.getPosition())
 globalObjectWay1.setQuaternion(torchReal.getQuaternion())
 globalObjectWay1.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
 globalObjectWay1.setColor([0,1,0])
+
+rotationMatrix = torchReal.getRotationMatrix()
+vectorAlign = [rotationMatrix[0][1],rotationMatrix[1][1],0.0]
+
 # globalObjectWay1.setMass(.1)
 # globalObjectWay1.setContact(True)
 RobotGlobal.view()
@@ -500,8 +504,14 @@ komo.setTiming(2., 1, 5., 0)
 komo.addControlObjective([], 0, 1e-0)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
-komo.addObjective([1.], ry.FS.poseDiff, ['l_gripper', 'globalObjectWay0'], ry.OT.eq, [1e1]);
-komo.addObjective([2.], ry.FS.poseDiff, ['l_gripper', 'globalObjectWay1'], ry.OT.eq, [1e1]);
+komo.addObjective([1.], ry.FS.positionDiff, ['l_gripper', 'globalObjectWay0'], ry.OT.eq, [1e1]);
+komo.addObjective([2.], ry.FS.positionDiff, ['l_gripper', 'globalObjectWay1'], ry.OT.eq, [1e1]);
+# komo.addObjective([2.], ry.FS.vector, ['l_gripper', 'globalObjectWay1'], ry.OT.eq, [1e1]);
+komo.addObjective([], ry.FS.vectorY, ['l_gripper'], ry.OT.eq, [1e1],vectorAlign)
+komo.addObjective([], ry.FS.vectorZ, ['l_gripper'], ry.OT.eq, [1e1],[0,0,1])
+
+
+
 
 
 ret = ry.NLP_Solver() \
