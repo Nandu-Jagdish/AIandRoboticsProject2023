@@ -14,8 +14,8 @@ RobotGlobal = ry.Config()
 RobotGlobal.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 cameraType = 'cameraWrist'
 # cameraType = 'camera'
-SIMULATION_ANGLE = True
-RealRObot = False
+SIMULATION_ANGLE = False
+RealRObot = True
 
 
 cameraFrame = RobotGlobal.getFrame(cameraType)
@@ -61,7 +61,7 @@ for i in range(6):
 
 # set initial pose of the robot
 objWaypoint = RobotGlobal.addFrame('objWaypoint', 'obj')
-objWaypoint.setRelativePosition([0,0,0.5])
+objWaypoint.setRelativePosition([0,0,0.1 ])
 objWaypoint.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
 objWaypoint.setColor([1,.0,0,0.2])
 
@@ -400,12 +400,17 @@ v2 = RedPoint1 - YellowPoint3
 lengthAxis = RedPoint1 - BluePoint2
 widthAxis = GreenPoint4 - YellowPoint3
 # find cross product
-heightAxis = np.cross(lengthAxis,widthAxis)
+# heightAxis = np.cross(lengthAxis,widthAxis)
 
 # normalise
-heightAxis = heightAxis/np.linalg.norm(heightAxis)
+# heightAxis = heightAxis/np.linalg.norm(heightAxis)
 lengthAxis = lengthAxis/np.linalg.norm(lengthAxis)
 widthAxis = widthAxis/np.linalg.norm(widthAxis)
+heightAxis = np.cross(lengthAxis,widthAxis)
+heightAxis = heightAxis/np.linalg.norm(heightAxis)
+
+
+
 # convert to rotation matrix
 # add vectors columnwise to matrix
 rotationMatrix = np.column_stack((widthAxis,lengthAxis,heightAxis))
