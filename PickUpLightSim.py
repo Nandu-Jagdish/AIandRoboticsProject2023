@@ -7,6 +7,7 @@ import time
 import matplotlib.pyplot as plt
 import quaternion
 from utils.robotUtils import mapTOWorldSpace
+from utils.cv_func import  arucoDetection
 
 RobotGlobal = ry.Config()
 # C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandasTable.g'))
@@ -127,19 +128,19 @@ input("Press Enter to continue...")
 
 
 
-rgb, depth = bot.getImageAndDepth(cameraType)
+# rgb, depth = bot.getImageAndDepth(cameraType)
 
-input("Press Enter to continue...")
+# input("Press Enter to continue...")
 
-rgb, depth = bot.getImageAndDepth(cameraType)
+# rgb, depth = bot.getImageAndDepth(cameraType)
 
-input("Press Enter to continue...")
+# input("Press Enter to continue...")
 
-rgb, depth = bot.getImageAndDepth(cameraType)
+# rgb, depth = bot.getImageAndDepth(cameraType)
 
 
 
-input("Press Enter to continue...")
+# input("Press Enter to continue...")
 rgb, depth = bot.getImageAndDepth(cameraType)
 
 fxypxy = bot.getCameraFxypxy(cameraType)
@@ -163,54 +164,36 @@ import cv2
 x = 0
 y = 0
 
-aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
-aruco_params =  cv2.aruco.DetectorParameters()
-detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
+ids = None
+
+while ids is None:
+    time.sleep(1)
+    print('looking for aruco marker')
+    rgb, depth = bot.getImageAndDepth(cameraType)
+    frame,ids,corners = arucoDetection(rgb)
+    # time.sleep(0.5)
+    
 
 
-# loop through frames
-#while True:
-# read frame from webcam
-frame = rgb
-# convert frame to grayscale
-gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-# detect aruco markers
-corners, ids, rejected = detector.detectMarkers(gray)
-#print(ids)
-# draw markers on frame
-frame = cv2.aruco.drawDetectedMarkers(frame, corners, ids)
+# aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
+# aruco_params =  cv2.aruco.DetectorParameters()
+# detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
 
 
-# get camera pose
-
-# define dummy values for camera matrix and distortion coefficients
-cameraMatrix = np.array([[fxypxy[0], 0, fxypxy[2]], [0, fxypxy[1], fxypxy[3]], [0, 0, 1]])
-
-# define a wrogn camera matrix with nonsense values
-distCoeffs = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
-
-rvec, tvec, markerPoints = cv2.aruco.estimatePoseSingleMarkers(corners, boxSize, cameraMatrix,
-                                                                           distCoeffs)
-(rvec - tvec).any()  # get rid of that nasty numpy value array error
-cv2.aruco.drawDetectedMarkers(frame, corners)  # Draw A square around the markers
-cv2.drawFrameAxes(frame, cameraMatrix, distCoeffs, rvec, tvec, 0.01)  # Draw Axis
-
-cameraDistanceFactor = -1.0
-print('t(' + str(tvec[0][0][0]) + ' ' + str(tvec[0][0][1]) + ' ' + str(tvec[0][0][2]) + ') r(' + str(rvec[0][0][0]) + ' ' + str(rvec[0][0][1]) + ' ' + str(rvec[0][0][2]) + ')')
-
-arucoPoint = [cameraDistanceFactor*tvec[0][0][0], cameraDistanceFactor*tvec[0][0][1], cameraDistanceFactor*tvec[0][0][2]]
-
-q = quaternion.from_rotation_vector(rvec)
-
-q = quaternion.as_euler_angles(q)
-#q[0][0][2] = -q[0][0][2]
+# # loop through frames
+# #while True:
+# # read frame from webcam
+# frame = rgb
+# # convert frame to grayscale
+# gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+# # detect aruco markers
+# corners, ids, rejected = detector.detectMarkers(gray)
+# #print(ids)
+# # draw markers on frame
+# frame = cv2.aruco.drawDetectedMarkers(frame, corners, ids)
 
 
-q = quaternion.from_euler_angles(q)
 
-b = quaternion.as_float_array([q])
-
-arucoQuaternion = b[0]
 
 def mapTOWorldSpace_old(point,z,fxypxy):
     '''

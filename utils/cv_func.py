@@ -44,3 +44,16 @@ def contourDetection(frame,original):
     # draw center of contour
     cv2.circle(original, (cx, cy), 4, (0, 0, 255), -1)
     return cx,cy,original
+
+def arucoDetection(frame):
+    aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250)
+    aruco_params =  cv2.aruco.DetectorParameters()
+    detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)   
+    # convert frame to grayscale
+    gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+    # detect aruco markers
+    corners, ids, rejected = detector.detectMarkers(gray)
+    #print(ids)
+    # draw markers on frame
+    frame = cv2.aruco.drawDetectedMarkers(frame, corners, ids)
+    return frame,ids,corners
