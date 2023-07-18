@@ -558,12 +558,12 @@ input("Press Enter to continue...")
 # define komo problem
 komo = ry.KOMO()
 komo.setConfig(RobotGlobal, True)
-komo.setTiming(2., 1, 5., 0)
+komo.setTiming(1., 1, 5., 0)
 komo.addControlObjective([], 0, 1e-0)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
 komo.addObjective([1.], ry.FS.positionDiff, ['l_gripper', 'globalObjectWay0'], ry.OT.eq, [1e1]);
-komo.addObjective([2.], ry.FS.positionDiff, ['l_gripper', 'globalObjectWay1'], ry.OT.eq, [1e1]);
+# komo.addObjective([2.], ry.FS.positionDiff, ['l_gripper', 'globalObjectWay1'], ry.OT.eq, [1e1]);
 # komo.addObjective([2.], ry.FS.vector, ['l_gripper', 'globalObjectWay1'], ry.OT.eq, [1e1]);
 komo.addObjective([], ry.FS.vectorY, ['l_gripper'], ry.OT.eq, [1e1],vectorAlign)
 komo.addObjective([], ry.FS.vectorZ, ['l_gripper'], ry.OT.eq, [1e1],[0,0,1])
