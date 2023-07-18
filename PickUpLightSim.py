@@ -14,8 +14,10 @@ RobotGlobal = ry.Config()
 RobotGlobal.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 cameraType = 'cameraWrist'
 # cameraType = 'camera'
-SIMULATION_ANGLE = True
-RealRObot = False
+SIMULATION_ANGLE = False
+RealRObot = True
+HEIGHT_OFFSET = 0.028
+ROT_OFFSET = 270-90
 TABLE_0POS = 0.605
 
 
@@ -93,7 +95,7 @@ ret = ry.NLP_Solver() \
     .solve()
 print(ret)
 
-komo.view(True, "waypoints solution")
+# komo.view(True, "waypoints solution")
 path = komo.getPath()
 
 
@@ -441,31 +443,31 @@ heightAxis = heightAxis/np.linalg.norm(heightAxis)
 
 # length axis in global space
 lenghtAxisGlobal = RedPoint1Global.getPosition() - YellowPoint2Global.getPosition()
-# lenghtAxisGlobal = lenghtAxisGlobal/np.linalg.norm(lenghtAxisGlobal)
+lenghtAxisGlobal = np.array([lenghtAxisGlobal[0], lenghtAxisGlobal[1], 0])/np.linalg.norm(np.array([lenghtAxisGlobal[0], lenghtAxisGlobal[1], 0]))
 # find angle between 
 # round to 3 decimal places
 # normalise
 
 
 # lenghtAxisGlobal = lenghtAxisGlobal/np.linalg.norm(lenghtAxisGlobal)
-rot = np.arccos(-(lenghtAxisGlobal[1]/lenghtAxisGlobal[0]))
-rot = np.degrees(rot)
+# rot = np.arccos(-(lenghtAxisGlobal[1]/lenghtAxisGlobal[0]))
+# rot = np.degrees(rot)
 
 # x = [lenghtAxisGlobal[1], 0, 0]/np.linalg.norm([lenghtAxisGlobal[1], 0, 0]) 
 # y = [0, lenghtAxisGlobal[0], 0]/np.linalg.norm([0, lenghtAxisGlobal[0], 0])
-# rot = np.arccos(np.dot(lenghtAxisGlobal, np.array([1,0,0])))
+rot = np.arccos(np.dot(lenghtAxisGlobal, np.array([1,0,0])))
 # # rot = np.clip(rot, -np.pi/2, np.pi/2)
 # # limit precision
 
 # # covert to degrees
-# rot = np.degrees(rot)
+rot = np.degrees(rot)
 
 
 # convert to rotation matrix
 # add vectors columnwise to matrix
 rotationMatrix = np.column_stack((widthAxis,lengthAxis,heightAxis))
 
-boardQuarternion = quaternion.from_rotation_matrix(rotationMatrix)
+# boardQuarternion = quaternion.from_rotation_matrix(rotationMatrix)
 
 
 
@@ -473,7 +475,7 @@ boardQuarternion = quaternion.from_rotation_matrix(rotationMatrix)
 # centerPoint = [0.,0.,0.]
 torch = RobotGlobal.addFrame("torch",cameraType)
 torch.setRelativePosition(centerPoint)
-torch.setRelativeQuaternion(quaternion.as_float_array(boardQuarternion))
+# torch.setRelativeQuaternion(quaternion.as_float_array(boardQuarternion))
 torch.setShape(ry.marker, [.3])
 torch.setColor([1,0,1])
 input("Press Enter to view the object marker...")
@@ -528,7 +530,7 @@ globalObjectWay1 =  RobotGlobal.addFrame("globalObjectWay1")
 globalObjectWay1.setPosition(torchReal.getPosition())
 positon = torchReal.getPosition()
 # globalObjectWay1.setQuaternion(torchReal.getQuaternion())
-string = f't({positon[0]} {positon[1]} {positon[2]}) d({rot} 0 0 1)'
+string = f't({positon[0]} {positon[1]} {positon[2]-HEIGHT_OFFSET}) d({ROT_OFFSET-rot} 0 0 1)'
 
 globalObjectWay1.setPose(string)
 globalObjectWay1.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
@@ -558,15 +560,15 @@ input("Press Enter to continue...")
 # define komo problem
 komo = ry.KOMO()
 komo.setConfig(RobotGlobal, True)
-komo.setTiming(1., 1, 5., 0)
+komo.setTiming(2., 1, 5., 0)
 komo.addControlObjective([], 0, 1e-0)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq);
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq);
-komo.addObjective([1.], ry.FS.positionDiff, ['l_gripper', 'globalObjectWay0'], ry.OT.eq, [1e1]);
-# komo.addObjective([2.], ry.FS.positionDiff, ['l_gripper', 'globalObjectWay1'], ry.OT.eq, [1e1]);
+komo.addObjective([1.], ry.FS.poseDiff, ['l_gripper', 'globalObjectWay0'], ry.OT.eq, [1e1]);
+komo.addObjective([2.], ry.FS.poseDiff, ['l_gripper', 'globalObjectWay1'], ry.OT.eq, [1e1]);
 # komo.addObjective([2.], ry.FS.vector, ['l_gripper', 'globalObjectWay1'], ry.OT.eq, [1e1]);
-komo.addObjective([], ry.FS.vectorY, ['l_gripper'], ry.OT.eq, [1e1],vectorAlign)
-komo.addObjective([], ry.FS.vectorZ, ['l_gripper'], ry.OT.eq, [1e1],[0,0,1])
+# komo.addObjective([], ry.FS.vectorY, ['l_gripper'], ry.OT.eq, [1e1],vectorAlign)
+# komo.addObjective([], ry.FS.vectorZ, ['l_gripper'], ry.OT.eq, [1e1],[0,0,1])
 
 
 
@@ -590,7 +592,7 @@ path = komo.getPath()
 input("press ENTER to move to Gripping position")
 
 # bot.home(RobotGlobal)
-bot.move(path, [3])
+bot.move(path, [5])
 while bot.getTimeToEnd()>0:
     bot.sync(RobotGlobal, .1)
 
@@ -601,28 +603,12 @@ while not bot.gripperDone(ry._left):
     bot.sync(RobotGlobal, .1)
     
     
-input("press ENTER to open gripper")
-bot.gripperOpen(ry._left)
-while not bot.gripperDone(ry._left):
-    bot.sync(RobotGlobal, .1)
-    
-input("press ENTER to move to gripping pose")
-bot.move(path, [10])
-while bot.getTimeToEnd()>0:
-    bot.sync(RobotGlobal, .1)
-    
-input("press ENTER to close gripper")
-bot.gripperClose(ry._left)
-while not bot.gripperDone(ry._left):
-    bot.sync(RobotGlobal, .1)
-    
-input("press ENTER to move to home position")
 bot.home(RobotGlobal)
-
-input("press ENTER to open gripper")
-bot.gripperOpen(ry._left)
-while not bot.gripperDone(ry._left):
+while bot.getTimeToEnd()>0:
     bot.sync(RobotGlobal, .1)
+
+del bot
+del RobotGlobal
 
 
 
