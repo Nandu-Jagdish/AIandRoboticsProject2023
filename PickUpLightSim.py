@@ -15,6 +15,7 @@ RobotGlobal.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 cameraType = 'cameraWrist'
 # cameraType = 'camera'
 SIMULATION_ANGLE = True
+RealRObot = False
 
 
 cameraFrame = RobotGlobal.getFrame(cameraType)
@@ -71,7 +72,7 @@ RobotGlobal.view()
 
 input("Press Enter to move home..")
 
-bot = ry.BotOp(RobotGlobal, False)
+bot = ry.BotOp(RobotGlobal, RealRObot)
 bot.home(RobotGlobal)
 while bot.getTimeToEnd()>0:
     bot.sync(RobotGlobal, .1)
