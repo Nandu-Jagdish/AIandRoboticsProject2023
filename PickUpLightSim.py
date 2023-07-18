@@ -16,6 +16,7 @@ cameraType = 'cameraWrist'
 # cameraType = 'camera'
 SIMULATION_ANGLE = True
 RealRObot = False
+TABLE_0POS = 0.605
 
 
 cameraFrame = RobotGlobal.getFrame(cameraType)
@@ -38,7 +39,7 @@ obj.setColor([1,.0,0])
 # obj.setMass(.1)
 obj.setContact(False)
 
-obj.setPose('t(-0.5 0.0 0.8) d(90 0 0 1)')
+obj.setPose('t(-0.5 0.0 0.8) d(86 0 0 1)')
 
 
 # create a 5 by grid of black and white boxes that lie on the surface on the "obj" box and all together are the size of the box surface. The boxes are all quadratic and flat. 
@@ -101,6 +102,11 @@ input("Press Enter to move to torch initial location...")
 
 bot.move(path, [3])
 while bot.getTimeToEnd()>0:
+    bot.sync(RobotGlobal, .1)
+
+input("press ENTER to open gripper")
+bot.gripperOpen(ry._left)
+while not bot.gripperDone(ry._left):
     bot.sync(RobotGlobal, .1)
 
 
@@ -355,19 +361,19 @@ RedFrame.setColor([1,0,0])
 BlueFrame = RobotGlobal.addFrame("BlueFramePoint",cameraType)
 BlueFrame.setRelativePosition(BluePoint2)
 BlueFrame.setShape(ry.ST.sphere, [0.019])
-BlueFrame.setColor([0,1,0])
-print('\nBluePoint2: ',BluePoint2)
+BlueFrame.setColor([0,0,1])
+print('\nBluePoint2: ',BlueFrame.getPosition())
 
 YelloFrame = RobotGlobal.addFrame("YelloFramePoint",cameraType)
 YelloFrame.setRelativePosition(YellowPoint3)
 YelloFrame.setShape(ry.ST.sphere, [0.019])
-YelloFrame.setColor([0,0,1])
+YelloFrame.setColor([1,1,0])
 print('\nYellowPoint3: ',YellowPoint3)
 
 GreenFrame = RobotGlobal.addFrame("GreenFramePoint",cameraType)
 GreenFrame.setRelativePosition(GreenPoint4)
 GreenFrame.setShape(ry.ST.sphere, [0.019])
-GreenFrame.setColor([1,1,0])
+GreenFrame.setColor([0,1,0])
 print('\nGreenPoint4: ',GreenPoint4)
 
 CenterFrame = RobotGlobal.addFrame("CenterFramePoint",cameraType)
@@ -399,6 +405,30 @@ v2 = RedPoint1 - YellowPoint3
 
 lengthAxis = RedPoint1 - BluePoint2
 widthAxis = GreenPoint4 - YellowPoint3
+
+# convert 2 points to global space
+RedPoint1Global = RobotGlobal.addFrame("RedPoint1Global")
+RedPoint1Global.setPosition(RedFrame.getPosition())
+RedPoint1Global.setQuaternion(RedFrame.getQuaternion())
+RedPoint1Global.setShape(ry.ST.ssBox, [.03,.03,0.03,.005])
+RedPoint1Global.setColor([1,1,1])
+
+
+
+GreenPoint2Global = RobotGlobal.addFrame("GreenPoint2Global")
+
+GreenPoint2Global.setPosition(GreenFrame.getPosition())
+GreenPoint2Global.setQuaternion(GreenFrame.getQuaternion())
+GreenPoint2Global.setShape(ry.ST.ssBox,  [.03,.03,0.03,.005])
+RobotGlobal.view()
+
+
+YellowPoint2Global = RobotGlobal.addFrame("YellowPoint2Global")
+
+YellowPoint2Global.setPosition(YelloFrame.getPosition())
+YellowPoint2Global.setQuaternion(YelloFrame.getQuaternion())
+YellowPoint2Global.setShape(ry.ST.ssBox,  [.03,.03,0.03,.005])
+RobotGlobal.view()
 # find cross product
 # heightAxis = np.cross(lengthAxis,widthAxis)
 
@@ -409,6 +439,26 @@ widthAxis = widthAxis/np.linalg.norm(widthAxis)
 heightAxis = np.cross(lengthAxis,widthAxis)
 heightAxis = heightAxis/np.linalg.norm(heightAxis)
 
+# length axis in global space
+lenghtAxisGlobal = RedPoint1Global.getPosition() - YellowPoint2Global.getPosition()
+# lenghtAxisGlobal = lenghtAxisGlobal/np.linalg.norm(lenghtAxisGlobal)
+# find angle between 
+# round to 3 decimal places
+# normalise
+
+
+# lenghtAxisGlobal = lenghtAxisGlobal/np.linalg.norm(lenghtAxisGlobal)
+rot = np.arccos(-(lenghtAxisGlobal[1]/lenghtAxisGlobal[0]))
+rot = np.degrees(rot)
+
+# x = [lenghtAxisGlobal[1], 0, 0]/np.linalg.norm([lenghtAxisGlobal[1], 0, 0]) 
+# y = [0, lenghtAxisGlobal[0], 0]/np.linalg.norm([0, lenghtAxisGlobal[0], 0])
+# rot = np.arccos(np.dot(lenghtAxisGlobal, np.array([1,0,0])))
+# # rot = np.clip(rot, -np.pi/2, np.pi/2)
+# # limit precision
+
+# # covert to degrees
+# rot = np.degrees(rot)
 
 
 # convert to rotation matrix
@@ -476,9 +526,17 @@ input("way point")
 # map to global coordinates
 globalObjectWay1 =  RobotGlobal.addFrame("globalObjectWay1")
 globalObjectWay1.setPosition(torchReal.getPosition())
-globalObjectWay1.setQuaternion(torchReal.getQuaternion())
+positon = torchReal.getPosition()
+# globalObjectWay1.setQuaternion(torchReal.getQuaternion())
+string = f't({positon[0]} {positon[1]} {positon[2]}) d({rot} 0 0 1)'
+
+globalObjectWay1.setPose(string)
 globalObjectWay1.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
 globalObjectWay1.setColor([0,1,0])
+
+globalObjectWay1_marker =  RobotGlobal.addFrame("globalObjectWay1_marker",'globalObjectWay1')
+globalObjectWay1_marker.setShape(ry.marker, [.5])
+globalObjectWay1_marker.setRelativePosition([0,0,0])
 
 rotationMatrix = torchReal.getRotationMatrix()
 vectorAlign = [rotationMatrix[0][1],rotationMatrix[1][1],0.0]
@@ -535,6 +593,13 @@ input("press ENTER to move to Gripping position")
 bot.move(path, [3])
 while bot.getTimeToEnd()>0:
     bot.sync(RobotGlobal, .1)
+
+
+input("press ENTER to close gripper")
+bot.gripperClose(ry._left)
+while not bot.gripperDone(ry._left):
+    bot.sync(RobotGlobal, .1)
+    
     
 input("press ENTER to open gripper")
 bot.gripperOpen(ry._left)
