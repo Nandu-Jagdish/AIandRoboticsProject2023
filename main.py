@@ -32,6 +32,7 @@ FOCUS_ON_CAM = False
 KOMO_VIEW = False
 REAL_ROBOT = False
 FILENAME = 'robot.svg'
+GRIPPING = True
 
 
 resultion = RESULTION
@@ -623,12 +624,12 @@ while bot.getTimeToEnd()>0:
 home_position = C.getFrame('l_gripper').getPosition()
 
 
-
-#Close gripper to grasp torchlight
-input("Press Enter to close gripper")
-bot.gripperClose(ry._left)
-while not bot.gripperDone(ry._left):
-    bot.sync(C, .1)
+if GRIPPING:
+    #Close gripper to grasp torchlight
+    input("Press Enter to close gripper")
+    bot.gripperClose(ry._left)
+    while not bot.gripperDone(ry._left):
+        bot.sync(C, .1)
 
 #Rotate torchlight away from camera
 komo = ry.KOMO()
@@ -704,12 +705,12 @@ while bot.getTimeToEnd()>0:
     bot.sync(C, .1)
 
 
-
-#Close gripper to grasp torchlight
-input("Press Enter to open gripper")
-bot.gripperOpen(ry._left)
-while not bot.gripperDone(ry._left):
-    bot.sync(C, .1)
+if GRIPPING:
+    #Close gripper to grasp torchlight
+    input("Press Enter to open gripper")
+    bot.gripperOpen(ry._left)
+    while not bot.gripperDone(ry._left):
+        bot.sync(C, .1)
 
 input("Press Enter to close script")
 del bot
