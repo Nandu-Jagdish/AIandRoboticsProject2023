@@ -13,8 +13,8 @@ RobotGlobal = ry.Config()
 RobotGlobal.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 cameraType = 'cameraWrist'
 # cameraType = 'camera'
-SIMULATION_ANGLE = True
-RealRObot = False
+SIMULATION_ANGLE = False
+RealRObot = True
 HEIGHT_OFFSET = 0.028
 ROT_OFFSET = 0
 TABLE_0POS = 0.605
@@ -22,17 +22,20 @@ TABLE_0POS = 0.605
 DEBUG = False
 SIMULATION_ANGLE_OF_OBJECT = 190
 
+EXT_CAM = [0,0.93,0]
+
+
 
 #joint_limit_offset = [0,0,-0.1,-0.1,0,0,0,0,0,0,0,0,0,0]
 JOINT_LIMIT_OFFSET = [-0.1]
 
-SPEED_MULTIPLIER = 0.3
-SECS_TO_HIDE = 1.0
-PAINTING_SPEED = 0.4
+SPEED_MULTIPLIER = 0.8
+SECS_TO_HIDE = 1.4
+PAINTING_SPEED = 0.35
 MOVING_SPEED = 0.5
 MOVE_ADD_TIME = 0.0
 HIDING_ANLGE = 25
-RESULTION = 40
+RESULTION = 50
 PICTURE_SIZE = 0.8 #MAX 0.6 with full size circle
 Z_OFFSET_CENTER = -0.1
 Y_OFFSET = -0.15 # offset in y direction for the whole drawing
@@ -46,7 +49,7 @@ OPTIMIZE_TRAJECTORY_ORDER = True
 CONTINUOUS_DRAWING = True
 FOCUS_ON_CAM = False
 KOMO_VIEW = False
-REAL_ROBOT = False
+REAL_ROBOT = RealRObot
 FILENAME = 'robot.svg'
 
 
@@ -1144,12 +1147,7 @@ C = ry.Config()
 C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 C.view(False)
 
-# define external camera frame
-# y has to be at least 1.0 to not cause undesired swirling around the external camera
-cam = C.addFrame( "externalCamera")
-cam.setShape(ry.ST.ssBox, size=[.1,.1,.1,.005])
-cam.setColor([1,0,0,1])
-cam.setPose("t(0 1.0 1.2)")
+
 
 
 
@@ -1159,6 +1157,14 @@ bot.home(C)
 while bot.getTimeToEnd()>0:
     bot.sync(C, .1)
 home_position = C.getFrame('l_gripper').getPosition()
+
+# define external camera frame
+# y has to be at least 1.0 to not cause undesired swirling around the external camera
+cam = C.addFrame( "externalCamera")
+cam.setShape(ry.ST.ssBox, size=[.1,.1,.1,.005])
+cam.setColor([1,0,0,1])
+cam.setPose("t(" + str(home_position[0]+EXT_CAM[0]) + " " + str(home_position[1]+EXT_CAM[1]) + " " + str(home_position[2]+EXT_CAM[2]) + ")")
+# cam.setPose("t(0 1.0 1.2)")
 
 
 #Rotate torchlight away from camera

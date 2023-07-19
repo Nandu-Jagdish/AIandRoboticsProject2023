@@ -25,6 +25,7 @@ Y_RANGE = 0#-0.3 # range in y direction for stroke width levels, set to 0 to dis
 DEPTH_CONNECT_TOLERANCE = 0.0 # tolerance for connecting paths in depth, set to 0 to disable connecting
 
 MIN_CONST_VELOCITY_STEPS = 4
+EXT_CAM = [0,0.93,0]
 
 OPTIMIZE_TRAJECTORY_ORDER = True
 CONTINUOUS_DRAWING = True
@@ -608,12 +609,7 @@ C = ry.Config()
 C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 C.view(False)
 
-# define external camera frame
-# y has to be at least 1.0 to not cause undesired swirling around the external camera
-cam = C.addFrame( "externalCamera")
-cam.setShape(ry.ST.ssBox, size=[.1,.1,.1,.005])
-cam.setColor([1,0,0,1])
-cam.setPose("t(0 1.0 1.2)")
+
 
 input("Press Enter to home")
 bot = ry.BotOp(C, REAL_ROBOT)
@@ -623,6 +619,13 @@ while bot.getTimeToEnd()>0:
     bot.sync(C, .1)
 home_position = C.getFrame('l_gripper').getPosition()
 
+# define external camera frame
+# y has to be at least 1.0 to not cause undesired swirling around the external camera
+cam = C.addFrame( "externalCamera")
+cam.setShape(ry.ST.ssBox, size=[.1,.1,.1,.005])
+cam.setColor([1,0,0,1])
+cam.setPose("t(" + str(home_position[0]+EXT_CAM[0]) + " " + str(home_position[1]+EXT_CAM[1]) + " " + str(home_position[2]+EXT_CAM[2]) + ")")
+# cam.setPose("t(0 1.0 1.2)")
 
 if GRIPPING:
     #Close gripper to grasp torchlight
