@@ -14,11 +14,14 @@ RobotGlobal = ry.Config()
 RobotGlobal.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
 cameraType = 'cameraWrist'
 # cameraType = 'camera'
-SIMULATION_ANGLE = False
-RealRObot = True
+SIMULATION_ANGLE = True
+RealRObot = False
 HEIGHT_OFFSET = 0.028
-ROT_OFFSET = 270-90
+ROT_OFFSET = 0
 TABLE_0POS = 0.605
+
+DEBUG = False
+SIMULATION_ANGLE_OF_OBJECT = 190
 
 
 cameraFrame = RobotGlobal.getFrame(cameraType)
@@ -27,7 +30,7 @@ cameraFrame = RobotGlobal.getFrame(cameraType)
 
 
 camerMarker = RobotGlobal.addFrame('cameraMarker', cameraType)
-camerMarker.setShape(ry.marker, size=[.5])
+camerMarker.setShape(ry.marker, size=[.2])
 camerMarker.setRelativePosition([0,0,0.0])
 
 boxSize = 0.07
@@ -41,7 +44,7 @@ obj.setColor([1,.0,0])
 # obj.setMass(.1)
 obj.setContact(False)
 
-obj.setPose('t(-0.5 0.0 0.8) d(86 0 0 1)')
+obj.setPose(f't(-0.5 0.0 0.8) d({SIMULATION_ANGLE_OF_OBJECT} 0 0 1)')
 
 
 # create a 5 by grid of black and white boxes that lie on the surface on the "obj" box and all together are the size of the box surface. The boxes are all quadratic and flat. 
@@ -133,23 +136,12 @@ glob.setPose('t(0. 0.0 0.0)')
 
 RobotGlobal.view()
 
-input("Press Enter to continue...")
 
 
 
-# rgb, depth = bot.getImageAndDepth(cameraType)
-
-# input("Press Enter to continue...")
-
-# rgb, depth = bot.getImageAndDepth(cameraType)
-
-# input("Press Enter to continue...")
-
-# rgb, depth = bot.getImageAndDepth(cameraType)
 
 
 
-# input("Press Enter to continue...")
 rgb, depth = bot.getImageAndDepth(cameraType)
 
 fxypxy = bot.getCameraFxypxy(cameraType)
@@ -277,73 +269,7 @@ if ids is not None:
 plt.imshow(frame)
 plt.show()
 
-       
-def colourDetection(frame,colour):
-    #convrt to opencv bgr
-    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-    #convert to hsv
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    #define range of colour in hsv
-    if colour == "red":
-        lower = np.array([0,50,50])
-        upper = np.array([10,255,255])
-    elif colour == "green":
-        lower = np.array([50,100,100])
-        upper = np.array([70,255,255])
-    elif colour == "blue":
-        lower = np.array([110,50,50])
-        upper = np.array([130,255,255])
-    #threshold hsv image to get only colour
-    mask = cv2.inRange(hsv, lower, upper)
-    #bitwise and mask and original image
-    res = cv2.bitwise_and(frame,frame, mask= mask)
-    #display frame
-    #cv2.imshow('frame',frame)
-    #cv2.imshow('mask',mask)
-    #cv2.imshow('res',res)
-    #check if user pressed 'q'
-    #cv2.waitKey(0)
-    #cv2.destroyAllWindows()
-    return res
-
-def colourSeperation(frame,mask):
-    #convert to hsv
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    #bitwise and mask and original image
-    res = cv2.bitwise_and(frame,frame, mask= mask)
-    #display frame
-    #cv2.imshow('frame',frame)
-    #cv2.imshow('mask',mask)
-    #cv2.imshow('res',res)
-    #check if user pressed 'q'
-    #cv2.waitKey(0)
-    #cv2.destroyAllWindows()
-    return res
-
-def contourDetection(frame):
-    # copy frame
-    original = frame.copy()
-    # convert to grayscale
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    contours, hierarchy = cv2.findContours(frame, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    # draw all contours
-    cv2.drawContours(original, contours, -1, (0, 255, 0), 3)
-    # find center of contour
-    M = cv2.moments(contours[0])
-    cx = int(M['m10']/M['m00'])
-    cy = int(M['m01']/M['m00'])
-    # draw center of contour
-    cv2.circle(original, (cx, cy), 4, (0, 0, 255), -1)
-    return cx,cy,original
-
-
-# redColour = colourDetection(frame,'red')
-# cx,cy,redColour = contourDetection(redColour)
-# plt.imshow(redColour)
-# plt.show()
-
-
-
+     
 
 RedPoint1 = mapTOWorldSpace((y1,x1),depth[y1,x1],fxypxy)
 BluePoint2 = mapTOWorldSpace((y2,x2),depth[y2,x2],fxypxy)
@@ -384,7 +310,8 @@ CenterFrame.setShape(ry.ST.sphere, [0.019])
 CenterFrame.setColor([1,0,1])
 print('\nCenterPoint: ',centerPoint)
 obj.setColor([1,0,1,0.3])
-input("Press Enter to view the 4 points...")
+if DEBUG:
+    input("Press Enter to view the 4 points...")
 RobotGlobal.view()
 
 
@@ -443,11 +370,14 @@ heightAxis = heightAxis/np.linalg.norm(heightAxis)
 
 # length axis in global space
 lenghtAxisGlobal = RedPoint1Global.getPosition() - YellowPoint2Global.getPosition()
-lenghtAxisGlobal = np.array([lenghtAxisGlobal[0], lenghtAxisGlobal[1], 0])/np.linalg.norm(np.array([lenghtAxisGlobal[0], lenghtAxisGlobal[1], 0]))
+
+import math
+rot = math.atan2(lenghtAxisGlobal[1],lenghtAxisGlobal[0])
+rot = np.degrees(rot)
+# lenghtAxisGlobal = np.array([lenghtAxisGlobal[0], lenghtAxisGlobal[1], 0])/np.linalg.norm(np.array([lenghtAxisGlobal[0], lenghtAxisGlobal[1], 0]))
 # find angle between 
 # round to 3 decimal places
-# normalise
-
+# normalisero
 
 # lenghtAxisGlobal = lenghtAxisGlobal/np.linalg.norm(lenghtAxisGlobal)
 # rot = np.arccos(-(lenghtAxisGlobal[1]/lenghtAxisGlobal[0]))
@@ -455,12 +385,12 @@ lenghtAxisGlobal = np.array([lenghtAxisGlobal[0], lenghtAxisGlobal[1], 0])/np.li
 
 # x = [lenghtAxisGlobal[1], 0, 0]/np.linalg.norm([lenghtAxisGlobal[1], 0, 0]) 
 # y = [0, lenghtAxisGlobal[0], 0]/np.linalg.norm([0, lenghtAxisGlobal[0], 0])
-rot = np.arccos(np.dot(lenghtAxisGlobal, np.array([1,0,0])))
+# rot = np.arccos(np.dot(lenghtAxisGlobal, np.array([1,0,0])))
 # # rot = np.clip(rot, -np.pi/2, np.pi/2)
 # # limit precision
 
 # # covert to degrees
-rot = np.degrees(rot)
+# rot = np.degrees(rot)
 
 
 # convert to rotation matrix
@@ -478,14 +408,16 @@ torch.setRelativePosition(centerPoint)
 # torch.setRelativeQuaternion(quaternion.as_float_array(boardQuarternion))
 torch.setShape(ry.marker, [.3])
 torch.setColor([1,0,1])
-input("Press Enter to view the object marker...")
+if DEBUG:
+    input("Press Enter to view the object marker...")
 
 RobotGlobal.view()
 torchReal = RobotGlobal.addFrame("torchReal",'torch')
 string = f't(0 0 0)d(-90 0 0 1))'
 
 torchReal.setRelativePose(string)
-input("Press Enter to rotate torch...")
+if DEBUG:
+    input("Press Enter to rotate torch...")
 torchReal.setShape(ry.marker, [.3])
 torchReal.setColor([1,0,1,0.1])
 torch.setShape(ry.marker, [.01])
@@ -496,7 +428,8 @@ RobotGlobal.view()
 # d = np.dot(normal,worldPoint1)
 # # find plane
 # plane = np.append(normal,d)
-input("set object on location")
+if DEBUG:
+    input("set object on location")
 
 # torchPyhsical = RobotGlobal.addFrame("torchPyhsical",'torchReal')
 # torchPyhsical.setRelativePose('t(0 0 0)')
@@ -512,7 +445,9 @@ print(x,y)
 print(w,h)
 
 RobotGlobal.view()
-input("way point")
+if DEBUG:
+
+    input("way point")
 
 # add gripping way point
 
@@ -530,7 +465,7 @@ globalObjectWay1 =  RobotGlobal.addFrame("globalObjectWay1")
 globalObjectWay1.setPosition(torchReal.getPosition())
 positon = torchReal.getPosition()
 # globalObjectWay1.setQuaternion(torchReal.getQuaternion())
-string = f't({positon[0]} {positon[1]} {positon[2]-HEIGHT_OFFSET}) d({ROT_OFFSET-rot} 0 0 1)'
+string = f't({positon[0]} {positon[1]} {positon[2]-HEIGHT_OFFSET}) d({rot-90} 0 0 1)'
 
 globalObjectWay1.setPose(string)
 globalObjectWay1.setShape(ry.ST.ssBox, size=[boxSize+0.03,boxSize*lengthFactor,boxSize*heightFactor,.005])
