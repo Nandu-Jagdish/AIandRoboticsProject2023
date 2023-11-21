@@ -21,5 +21,20 @@ Kill all python
 ```
 killall python
 ```
+## Demo 1
+```
+python final_1.py
+```
+
+### To run on real robot
+set
+```
+REAL_ROBOT = True
+```
+### To get debug messages and intermediate frames
+set
+```
+DEBUG = True
+``` 
 
 '''
